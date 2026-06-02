@@ -150,7 +150,7 @@ export default function Header() {
             </Link>
 
             {/* User */}
-            <Link href="/signin" className="no-underline">
+            <Link href="/profile" className="no-underline">
               <button className="p-2 bg-transparent border-none cursor-pointer text-slate-600 rounded-lg hover:bg-slate-50 transition-colors">
                 <User className="w-[18px] h-[18px]" />
               </button>
@@ -217,12 +217,12 @@ export default function Header() {
             </nav>
 
             {/* Branch Badge */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full px-3.5 py-1.5 cursor-pointer hover:bg-[#d9f1e6] hover:border[#d9f1e6] transition-colors">
+            {/* <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full px-3.5 py-1.5 cursor-pointer hover:bg-[#d9f1e6] hover:border[#d9f1e6] transition-colors">
               <MapPin className="w-3 h-3 text-[#00A759]" />
               <span className="text-[11px] font-bold text-slate-500 tracking-[0.5px]">
                 KATARGAM BRANCH
               </span>
-            </div>
+            </div> */}
           </div>
         </div>
 

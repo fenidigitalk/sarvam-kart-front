@@ -4,6 +4,9 @@ import "./globals.css"; // Global styles
 import { CartProvider } from "@/context/cartContext";
 import Toast from "@/components/Toast";
 
+import { Toaster } from "sonner";
+import ReduxProvider from "@/store/ReduxProvider";
+
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -27,8 +30,11 @@ export default function RootLayout({
         className="font-sans antialiased  text-[#141d23] min-h-screen"
       >
         <CartProvider>
-           <Toast />
-          {children}
+          <ReduxProvider>
+            <Toaster position="top-right" richColors />
+            <Toast />
+            {children}
+          </ReduxProvider>
         </CartProvider>
       </body>
     </html>
