@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -15,25 +15,12 @@ import { useCart } from "@/context/cartContext";
 import { useRouter } from "next/navigation";
 
 const categories = [
-  { name: "Home & Kitchen Products", icon: "🏠" }, //
-  // { name: "Massage Products", icon: "💆" },
-  // { name: "Beauty Products", icon: "💄" },
-  // { name: "Clock", icon: "🕐" },
-  // { name: "Packing Material", icon: "📦" },
-  // { name: "Baby Product", icon: "👶" },
-  { name: "Fashion Products", icon: "👗" }, //
-  // { name: "Bags", icon: "👜" },
-  // { name: "Bathroom Accessories", icon: "🚿" },
-  // { name: "Hardware Products", icon: "🔧" },
-  // { name: "Garden & Outdoor", icon: "🌿" },
-  // { name: "Umbrella", icon: "☂️" },
-  // { name: "Exercise Products", icon: "🏋️" },
-  // { name: "Mobile Accessories", icon: "📱" },
-  // { name: "Kids Toys", icon: "🧸" },
-  { name: "Home Decor", icon: "🪴" }, //
-  // { name: "Stainless Steel Products", icon: "🥄" },
-  // { name: "Picnic", icon: "🧺" },
-  { name: "Electric Product", icon: "⚡" }, //
+  { name: "Home & Kitchen", icon: "🏠" },
+  { name: "Fashion & Apparel", icon: "👗" },
+  { name: "Home Decor", icon: "🪴" },
+  { name: "Electronics", icon: "⚡" },
+  { name: "Personal Care", icon: "🧴" },
+  { name: "Kitchen Essentials", icon: "🍳" },
   // { name: "Office Stationery Product", icon: "📎" },
   // { name: "Winter Product", icon: "🧥" },
   // { name: "Craft Product", icon: "✂️" },
@@ -52,20 +39,31 @@ const categories = [
   // { name: "Night Lamp", icon: "🌙" },
   // { name: "Wallpaper", icon: "🖼️" },
   // { name: "Travel", icon: "✈️" },
-  //   { name: "Hair Brushes", icon: "💇" },
-  //   { name: "Electronics", icon: "📺" },
-  //   { name: "Fashion & Apparel", icon: "👔" },
-  //   { name: "Personal Care", icon: "🧴" },
+  // { name: "Hair Brushes", icon: "💇" },
+  // { name: "Electronics", icon: "📺" },
+  // { name: "Fashion & Apparel", icon: "👔" },
+  // { name: "Personal Care", icon: "🧴" },
 ];
 
 export default function Header() {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { totals, wishlist } = useCart();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const cartCount = totals.itemCount;
   const wishlistCount = wishlist.length;
   const router = useRouter();
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setCategoryOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <>
@@ -170,24 +168,16 @@ export default function Header() {
               </Link>
 
               {/* Category Dropdown */}
-              <div className="relative">
-                <Link href="/category" className="no-underline">
+              <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setCategoryOpen(!categoryOpen)}
-                    className="flex items-center gap-1.5 px-4 py-2.5 mx-1 rounded-lg border-none cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-[#00A759] transition-all"
+                    className="flex items-center gap-1.5 px-4 py-2.5 mx-1 rounded-lg border-none cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-[#00A759] transition-all bg-transparent"
                   >
                     Category
                     <ChevronDown
                       className={`w-3.5 h-3.5 transition-transform duration-200 ${categoryOpen ? "rotate-180" : ""}`}
                     />
                   </button>
-                </Link>
-
-                 <Link href="/all-collections" className="no-underline">
-                <button className="px-4 py-3 bg-transparent border-none cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-[#00A759] transition-colors">
-                  All Collections
-                </button>
-              </Link>
 
                 {/* Dropdown */}
                 {categoryOpen && (
@@ -199,7 +189,7 @@ export default function Header() {
                           onClick={() => {
                             setCategoryOpen(false);
                             router.push(
-                              `/category?cat=${encodeURIComponent(cat.name)}`,
+                              `/category?category=${encodeURIComponent(cat.name)}`,
                             );
                           }}
                           className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-orange-50 transition-colors group"
@@ -214,6 +204,13 @@ export default function Header() {
                   </div>
                 )}
               </div>
+
+              {/* All Collections */}
+              <Link href="/all-collections" className="no-underline">
+                <button className="px-4 py-3 bg-transparent border-none cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-[#00A759] transition-colors">
+                  All Collections
+                </button>
+              </Link>
             </nav>
 
             {/* Branch Badge */}
@@ -226,22 +223,7 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Overlay */}
-        {categoryOpen && (
-          <div
-            onClick={() => setCategoryOpen(false)}
-            className="fixed inset-0 z-[199] "
-          />
-        )}
       </header>
-
-      {/* Overlay */}
-      {categoryOpen && (
-        <div
-          onClick={() => setCategoryOpen(false)}
-          className="fixed inset-0 z-[199] "
-        />
-      )}
     </>
   );
 }

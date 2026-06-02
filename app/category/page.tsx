@@ -1,8 +1,8 @@
 "use client";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
-import { useState, useMemo, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useMemo, Suspense, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { PRODUCTS_CATALOG } from "@/lib/data";
@@ -20,17 +20,18 @@ import {
 
 const ALL_CATEGORIES = [
   "All",
-  "Fashion & Apparel",
-  "Electronics",
-  "Home Decor",
-  "Personal Care",
   "Home & Kitchen",
+  "Fashion & Apparel",
+  "Home Decor",
+  "Electronics",
+  "Personal Care",
   "Kitchen Essentials",
 ];
 
 function CategoryContent() {
   const searchParams = useSearchParams();
-  const initialCategory = searchParams.get("category") || "All";
+  const router = useRouter();
+  const initialCategory = searchParams.get("category") || searchParams.get("cat") || "All";
 
   const { addToCart, toggleWishlist, wishlist } = useCart();
 
@@ -63,6 +64,10 @@ function CategoryContent() {
       return 0;
     });
   }, [selectedCategory, priceMax, sortOrder, searchQuery]);
+
+  useEffect(() => {
+    setSelectedCategory(initialCategory);
+  }, [initialCategory]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { All: PRODUCTS_CATALOG.length };
@@ -103,7 +108,17 @@ function CategoryContent() {
                   {ALL_CATEGORIES.map((cat) => (
                     <button
                       key={cat}
-                      onClick={() => setSelectedCategory(cat)}
+                      onClick={() => {
+                        setSelectedCategory(cat);
+
+                        if (cat === "All") {
+                          router.push("/category");
+                        } else {
+                          router.push(
+                            `/category?category=${encodeURIComponent(cat)}`,
+                          );
+                        }
+                      }}
                       className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold transition-all border-l-[3px] cursor-pointer ${
                         selectedCategory === cat
                           ? "bg-[#dff3ea] text-[#00A759] border-[#00A759]"
@@ -421,7 +436,7 @@ function CategoryContent() {
           </div>
         </div>
       </div>
-      <Footer/>
+      <Footer />
     </>
   );
 }

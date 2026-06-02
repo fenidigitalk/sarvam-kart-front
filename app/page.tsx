@@ -42,10 +42,16 @@ const HIGHLIGHT_VIDEOS = [
   "/videos/sarvam_cart_video4.mp4",
 ];
 
+const bannerImages = [
+   "/Images/hero_sec1.jpeg",
+   "/Images/hero_sec2.jpeg",
+   "/Images/hero_sec3.jpeg",
+];
+
 export default function HomePage() {
   const [hlOffset, setHlOffset] = useState(0);
   const [heroIdx, setHeroIdx] = useState(0);
-  const heroImages = PRODUCTS_CATALOG.slice(0, 5); 
+  const heroImages = PRODUCTS_CATALOG.slice(0, 5);
 
   useEffect(() => {
     const t = setInterval(
@@ -57,15 +63,58 @@ export default function HomePage() {
 
   const newArrivals = PRODUCTS_CATALOG.slice(0, 5);
   const trending = PRODUCTS_CATALOG.slice(5, 10);
+  const [current, setCurrent] = useState(0);
+
+  // Auto slide
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent((prev) => (prev === bannerImages.length - 1 ? 0 : prev + 1));
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <>
-      <div className="min-h-screen bg-[#f8fafc] font-sans">
+      <div className="min-h-screen bg-[#f8fafc] font-sans ">
         <Header />
+        <section className="w-full relative overflow-hidden mb-8">
+          <div className="relative w-full h-[280px] sm:h-[380px] md:h-[500px] lg:h-[650px]">
+            {bannerImages.map((img, i) => (
+              <div
+                key={i}
+                className={`absolute inset-0 transition-opacity duration-1000 ${
+                  current === i ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                <Image
+                  src={img}
+                  alt={`banner-${i}`}
+                  fill
+                  priority
+                  className="object-cover"
+                />
+              </div>
+            ))}
+
+            {/* Dots */}
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+              {bannerImages.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrent(i)}
+                  className={`transition-all rounded-full ${
+                    current === i ? "w-7 h-2 bg-white" : "w-2 h-2 bg-white/50"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
 
         <main className="max-w-[1280px] mx-auto px-5 py-6">
           {/* HERO */}
-          <div className="relative flex justify-between items-center overflow-hidden rounded-[20px] px-14 py-12 min-h-[280px] mb-8 bg-[#00A759]">
+          {/* <div className="relative flex justify-between items-center overflow-hidden rounded-[20px] px-14 py-12 min-h-[280px] mb-8 bg-[#00A759]">
             <div className="absolute -right-10 -top-10 w-[300px] h-[300px] rounded-full bg-[rgba(255,107,53,0.08)]" />
             <div className="absolute right-[60px] -bottom-[60px] w-[200px] h-[200px] rounded-full bg-[rgba(255,163,82,0.06)]" />
 
@@ -104,7 +153,7 @@ export default function HomePage() {
             </div>
 
             <div className="relative z-10 w-[350px]">
-              {/* Slides */}
+             
               <div className="relative w-[340px] h-[240px] rounded-[20px] overflow-hidden border-[3px] border-[rgba(255,163,82,0.3)] shadow-[0_20px_60px_rgba(0,0,0,0.4)]">
                 {heroImages.map((p, i) => (
                   <div
@@ -120,7 +169,7 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
-              {/* Dots */}
+              
               <div className="flex justify-center gap-1.5 mt-3">
                 {heroImages.map((_, i) => (
                   <button
@@ -131,9 +180,9 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
-          </div>
+          </div> */}
 
-           {/* CATEGORIES */}
+          {/* CATEGORIES */}
           <div className="mb-10">
             <div className="flex justify-between items-center mb-5">
               <div>
@@ -145,7 +194,7 @@ export default function HomePage() {
                 </p>
               </div>
               <Link
-                href="/category"
+                href="/all-collections"
                 className="flex items-center gap-1 text-sm font-semibold text-[#00A759]"
               >
                 View All <ChevronRight className="w-4 h-4" />
@@ -174,7 +223,6 @@ export default function HomePage() {
               ))}
             </div>
           </div>
-
           {/* TODAY'S HIGHLIGHT */}
           <div className="mb-10">
             <h2 className="text-xl font-extrabold text-slate-800 mb-5">
@@ -217,7 +265,6 @@ export default function HomePage() {
               </button>
             </div>
           </div>
-
           {/* TRUST BADGES */}
           {/* <div className="grid grid-cols-4 gap-3 mb-9">
             {[
@@ -260,7 +307,6 @@ export default function HomePage() {
               </div>
             ))}
           </div> */}
-
           {/* PRODUCTS */}
           <div className="mb-10">
             <div className="flex justify-between items-center mb-5">
@@ -280,7 +326,6 @@ export default function HomePage() {
               ))}
             </div>
           </div>
-
           {/* TRENDING */}
           <div className="mb-10">
             <h2 className="text-xl font-extrabold text-slate-800 mb-5">
