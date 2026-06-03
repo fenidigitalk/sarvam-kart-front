@@ -43,7 +43,7 @@ const HIGHLIGHT_VIDEOS = [
 ];
 
 const bannerImages = [
-   "/Images/hero_sec1.jpeg",
+   "/Images/hero_sec4.jpeg",
    "/Images/hero_sec2.jpeg",
    "/Images/hero_sec3.jpeg",
 ];

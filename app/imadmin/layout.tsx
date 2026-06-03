@@ -92,17 +92,31 @@ export default function AdminLayout({
             <LayoutDashboard className="w-5 h-5" />
             <span className="font-medium text-sm">Dashboard</span>
           </Link>
+
           <Link
-            href="/imadmin/products"
+            href="/imadmin/orders"
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
-              pathname.includes("/imadmin/products")
+              pathname.includes("/imadmin/orders")
                 ? "bg-[#00A759] text-white"
                 : "text-slate-400 hover:bg-slate-900 hover:text-white"
             }`}
           >
             <Package className="w-5 h-5" />
-            <span className="font-medium text-sm">Products</span>
+            <span className="font-medium text-sm">Orders</span>
           </Link>
+
+          <Link
+            href="/imadmin/pending-payments"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
+              pathname.includes("/imadmin/pending-payments")
+                ? "bg-[#00A759] text-white"
+                : "text-slate-400 hover:bg-slate-900 hover:text-white"
+            }`}
+          >
+            <Package className="w-5 h-5" />
+            <span className="font-medium text-sm">Pending Payments</span>
+          </Link>
+
         </nav>
 
         <div className="p-4 border-t border-slate-800">
