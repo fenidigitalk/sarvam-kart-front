@@ -18,58 +18,18 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useCart } from "@/context/cartContext";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
+import { addToCartAsync } from "@/store/slices/cartSlice";
+import { toast } from "sonner";
 import { PRODUCTS_CATALOG } from "@/lib/data";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 
-// ── Mock orders data ──
-const MOCK_ORDERS = [
-  {
-    id: "SK-2026-0042",
-    date: "May 22, 2026",
-    status: "delivered",
-    total: "$378.00",
-    items: [
-      { productId: "luxe-minimalist-ceramic-tea-set", quantity: 1 },
-      { productId: "minimalist-ceramic-watch", quantity: 1 },
-    ],
-    address: "Flat 402, Pearl Residency, Surat, Gujarat 395007",
-    tracking: "DLH-SKT-9821043",
-  },
-  {
-    id: "SK-2026-0031",
-    date: "May 10, 2026",
-    status: "shipped",
-    total: "₹12,499",
-    items: [{ productId: "studio-wireless-pro", quantity: 1 }],
-    address: "Flat 402, Pearl Residency, Surat, Gujarat 395007",
-    tracking: "MUM-SKT-7762219",
-  },
-  {
-    id: "SK-2026-0019",
-    date: "April 28, 2026",
-    status: "processing",
-    total: "₹17,297",
-    items: [
-      { productId: "elite-velocity-runner", quantity: 1 },
-      { productId: "aviator-classic-series", quantity: 2 },
-    ],
-    address: "Flat 402, Pearl Residency, Surat, Gujarat 395007",
-    tracking: "DEL-SKT-5512804",
-  },
-  {
-    id: "SK-2026-0007",
-    date: "April 5, 2026",
-    status: "cancelled",
-    total: "₹8,499",
-    items: [{ productId: "essence-de-nuit-perfume", quantity: 1 }],
-    address: "Flat 402, Pearl Residency, Surat, Gujarat 395007",
-    tracking: "—",
-  },
-];
+import { fetchMyOrdersAsync } from "@/store/slices/orderSlice";
+import { useEffect } from "react";
 
-type OrderStatus = "delivered" | "shipped" | "processing" | "cancelled";
+type OrderStatus = "delivered" | "shipped" | "processing" | "cancelled" | "pending" | "completed";
 
 const STATUS_CONFIG: Record<
   OrderStatus,
@@ -83,6 +43,20 @@ const STATUS_CONFIG: Record<
   }
 > = {
   delivered: {
+    label: "Delivered",
+    color: "text-emerald-700",
+    bg: "bg-emerald-50 border-emerald-200",
+    icon: <CheckCircle className="w-4 h-4 text-emerald-600" />,
+    steps: [
+      "Order Placed",
+      "Confirmed",
+      "Dispatched",
+      "Out for Delivery",
+      "Delivered",
+    ],
+    currentStep: 4,
+  },
+  completed: {
     label: "Delivered",
     color: "text-emerald-700",
     bg: "bg-emerald-50 border-emerald-200",
@@ -124,6 +98,20 @@ const STATUS_CONFIG: Record<
     ],
     currentStep: 1,
   },
+  pending: {
+    label: "Processing",
+    color: "text-amber-700",
+    bg: "bg-amber-50 border-amber-200",
+    icon: <Clock className="w-4 h-4 text-amber-600" />,
+    steps: [
+      "Order Placed",
+      "Confirmed",
+      "Dispatched",
+      "Out for Delivery",
+      "Delivered",
+    ],
+    currentStep: 1,
+  },
   cancelled: {
     label: "Cancelled",
     color: "text-red-700",
@@ -135,22 +123,35 @@ const STATUS_CONFIG: Record<
 };
 
 export default function OrdersPage() {
-  const { currentUser, addToCart, showToast } = useCart();
-  const [expandedOrder, setExpandedOrder] = useState<string | null>(
-    "SK-2026-0042",
-  );
+  const dispatch = useDispatch<AppDispatch>();
+  const { user: currentUser } = useSelector((state: RootState) => state.auth);
+  const { myOrders, loading } = useSelector((state: RootState) => state.order);
+
+  useEffect(() => {
+    if (currentUser) {
+      dispatch(fetchMyOrdersAsync());
+    }
+  }, [currentUser, dispatch]);
+  
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | OrderStatus>("all");
 
-  const filteredOrders = MOCK_ORDERS.filter(
-    (o) => filterStatus === "all" || o.status === filterStatus,
+  const filteredOrders = myOrders.filter(
+    (o) => filterStatus === "all" || o.orderStatus === filterStatus,
   );
 
-  const handleReorder = (order: (typeof MOCK_ORDERS)[0]) => {
-    order.items.forEach((item) => {
+  const handleReorder = async (order: any) => {
+    for (const item of order.items) {
       const product = PRODUCTS_CATALOG.find((p) => p.id === item.productId);
-      if (product) addToCart(product, item.quantity);
-    });
-    showToast(`Reordered ${order.items.length} item(s) — added to your Bag!`);
+      if (product) {
+        await dispatch(addToCartAsync({
+          productId: product.id,
+          variantId: "default",
+          quantity: item.quantity
+        }));
+      }
+    }
+    toast.success(`Reordered ${order.items.length} item(s) — added to your Bag!`);
   };
 
   // Guest view
@@ -191,9 +192,9 @@ export default function OrdersPage() {
             <p className="text-xs text-slate-500 mt-1">
               Hello,{" "}
               <span className="font-semibold text-slate-700">
-                {currentUser.name}
+                {currentUser.fullName}
               </span>{" "}
-              — {MOCK_ORDERS.length} orders total
+              — {myOrders.length} orders total
             </p>
           </div>
 
@@ -237,12 +238,12 @@ export default function OrdersPage() {
         ) : (
           <div className="space-y-4">
             {filteredOrders.map((order) => {
-              const config = STATUS_CONFIG[order.status as OrderStatus];
-              const isExpanded = expandedOrder === order.id;
+              const config = STATUS_CONFIG[(order.orderStatus as OrderStatus) || "processing"];
+              const isExpanded = expandedOrder === order._id;
 
               return (
                 <motion.div
-                  key={order.id}
+                  key={order._id}
                   layout
                   className="bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-md transition"
                 >
@@ -250,7 +251,7 @@ export default function OrdersPage() {
                   <div
                     className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer"
                     onClick={() =>
-                      setExpandedOrder(isExpanded ? null : order.id)
+                      setExpandedOrder(isExpanded ? null : order._id)
                     }
                   >
                     <div className="flex items-center gap-4">
@@ -260,7 +261,7 @@ export default function OrdersPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold text-slate-900 font-mono">
-                            {order.id}
+                            {order.orderNumber}
                           </span>
                           <span
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${config.bg} ${config.color}`}
@@ -270,14 +271,14 @@ export default function OrdersPage() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          {order.date} · {order.items.length} item
-                          {order.items.length > 1 ? "s" : ""} · {order.total}
+                          {new Date(order.createdAt).toLocaleDateString()} · {order.items?.length || 0} item
+                          {(order.items?.length || 0) !== 1 ? "s" : ""} · ₹{order.totalAmount}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3 self-end sm:self-center">
-                      {order.status !== "cancelled" && (
+                      {order.orderStatus !== "cancelled" && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -311,7 +312,7 @@ export default function OrdersPage() {
                       >
                         <div className="border-t border-slate-100 p-5 space-y-6">
                           {/* Tracking Progress */}
-                          {order.status !== "cancelled" && (
+                          {order.orderStatus !== "cancelled" && (
                             <div className="space-y-3">
                               <h4 className="text-xs font-bold font-mono tracking-widest text-[#00A759] uppercase">
                                 Shipment Track
@@ -343,7 +344,7 @@ export default function OrdersPage() {
                                   </React.Fragment>
                                 ))}
                               </div>
-                              {order.tracking !== "—" && (
+                              {order.tracking && order.tracking !== "—" && (
                                 <p className="text-[10px] text-slate-500 font-mono">
                                   Tracking ID:{" "}
                                   <span className="font-bold text-slate-700">
@@ -392,7 +393,7 @@ export default function OrdersPage() {
                                       {product.price.toLocaleString()}
                                     </p>
                                   </div>
-                                  {order.status === "delivered" && (
+                                  {order.orderStatus === "delivered" && (
                                     <button className="flex items-center gap-1 px-2.5 py-1.5 border border-amber-200 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-semibold hover:bg-amber-100 transition whitespace-nowrap">
                                       <Star className="w-3 h-3" />
                                       Rate
@@ -411,7 +412,7 @@ export default function OrdersPage() {
                                 Delivery Address
                               </span>
                               <span className="text-slate-500">
-                                {order.address}
+                                {order.address || "Your default address"}
                               </span>
                             </div>
                           </div>

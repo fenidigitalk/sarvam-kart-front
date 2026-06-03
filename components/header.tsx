@@ -10,50 +10,42 @@ import {
   MapPin,
   ChevronDown,
   X,
+  Folder,
 } from "lucide-react";
-import { useCart } from "@/context/cartContext";
 import { useRouter } from "next/navigation";
-
-const categories = [
-  { name: "Home & Kitchen", icon: "🏠" },
-  { name: "Fashion & Apparel", icon: "👗" },
-  { name: "Home Decor", icon: "🪴" },
-  { name: "Electronics", icon: "⚡" },
-  { name: "Personal Care", icon: "🧴" },
-  { name: "Kitchen Essentials", icon: "🍳" },
-  // { name: "Office Stationery Product", icon: "📎" },
-  // { name: "Winter Product", icon: "🧥" },
-  // { name: "Craft Product", icon: "✂️" },
-  // { name: "Cleaning Product", icon: "🧹" },
-  // { name: "Bottle Product", icon: "🍶" },
-  // { name: "Furniture", icon: "🪑" },
-  // { name: "Summer Product", icon: "☀️" },
-  // { name: "Computer Product", icon: "💻" },
-  // { name: "Bag Cover", icon: "🎒" },
-  // { name: "Kids Stationary", icon: "✏️" },
-  // { name: "Wipes Product", icon: "🧻" },
-  // { name: "Pet Product", icon: "🐾" },
-  // { name: "Soft Toys", icon: "🧸" },
-  // { name: "Glass Product", icon: "🥛" },
-  // { name: "Holi", icon: "🎨" },
-  // { name: "Night Lamp", icon: "🌙" },
-  // { name: "Wallpaper", icon: "🖼️" },
-  // { name: "Travel", icon: "✈️" },
-  // { name: "Hair Brushes", icon: "💇" },
-  // { name: "Electronics", icon: "📺" },
-  // { name: "Fashion & Apparel", icon: "👔" },
-  // { name: "Personal Care", icon: "🧴" },
-];
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
+import { fetchCategories } from "@/store/slices/categorySlice";
+import { fetchCartAsync } from "@/store/slices/cartSlice";
 
 export default function Header() {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const { totals, wishlist } = useCart();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const cartCount = totals.itemCount;
-  const wishlistCount = wishlist.length;
+  const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
+
+  const { totalQuantity, wishlist, items } = useSelector((state: RootState) => state.cart);
+  const { token } = useSelector((state: RootState) => state.auth);
+  const { categories, loading } = useSelector((state: RootState) => state.category);
+
+  const cartCount = items.length;
+  const wishlistCount = wishlist.length;
+
+
+
+  useEffect(() => {
+    if (categories.length === 0 && !loading) {
+      dispatch(fetchCategories());
+    }
+  }, [dispatch, categories.length, loading]);
+
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchCartAsync());
+    }
+  }, [dispatch, token]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -182,25 +174,37 @@ export default function Header() {
                 {/* Dropdown */}
                 {categoryOpen && (
                   <div className="absolute left-0 top-[48px] w-[520px] bg-white rounded-2xl border border-slate-200 shadow-xl z-[200] p-4">
-                    <div className="grid grid-cols-2 gap-1">
-                      {categories.map((cat, i) => (
-                        <div
-                          key={i}
-                          onClick={() => {
-                            setCategoryOpen(false);
-                            router.push(
-                              `/category?category=${encodeURIComponent(cat.name)}`,
-                            );
-                          }}
-                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-orange-50 transition-colors group"
-                        >
-                          <span className="text-xl shrink-0">{cat.icon}</span>
-                          <span className="text-[12px] font-semibold text-slate-700 group-hover:text-[#00A759] transition-colors">
-                            {cat.name}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    {loading ? (
+                      <div className="p-4 text-center text-sm text-slate-500">Loading categories...</div>
+                    ) : categories.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-slate-500">No categories found</div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1">
+                        {categories.map((cat, i) => (
+                          <div
+                            key={cat._id || i}
+                            onClick={() => {
+                              setCategoryOpen(false);
+                              router.push(
+                                `/category?category=${encodeURIComponent(cat.title)}`,
+                              );
+                            }}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-orange-50 transition-colors group"
+                          >
+                            <div className="w-8 h-8 rounded-lg overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center border border-slate-200">
+                              {cat.image ? (
+                                <img src={cat.image} alt={cat.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <Folder className="w-4 h-4 text-slate-400" />
+                              )}
+                            </div>
+                            <span className="text-[12px] font-semibold text-slate-700 group-hover:text-[#00A759] transition-colors">
+                              {cat.title}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

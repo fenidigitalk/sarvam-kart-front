@@ -5,7 +5,6 @@ import { motion } from "motion/react";
 import { User, Phone, KeyRound, ArrowLeft, Edit3, X, Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCart } from "@/context/cartContext";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import { useDispatch, useSelector } from "react-redux";
@@ -17,7 +16,6 @@ export default function ProfilePage() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const { user, loading, error } = useSelector((state: RootState) => state.auth);
-  const { setCurrentUser, showToast, currentUser } = useCart();
 
   const [isEditing, setIsEditing] = useState(false);
   const [step, setStep] = useState<"edit" | "otp">("edit");
@@ -30,14 +28,10 @@ export default function ProfilePage() {
     if (user) {
       setName(user.fullName || "");
       setPhone(user.phone || "");
-    } else if (currentUser) {
-      setName(currentUser.name || "");
-      // Extract phone from email mock if needed, but preferably rely on Redux user
-      setPhone(currentUser.email?.split("@")[0] || "");
     }
-  }, [user, currentUser]);
+  }, [user]);
 
-  if (!user && !currentUser) {
+  if (!user) {
     return (
       <>
         <Header />
@@ -59,7 +53,7 @@ export default function ProfilePage() {
   }
 
   const handleSaveClick = async () => {
-    const hasPhoneChanged = phone !== user?.phone && phone !== currentUser?.email?.split("@")[0];
+    const hasPhoneChanged = phone !== user?.phone;
 
     if (!name.trim() || !phone.trim() || phone.length < 10) {
       toast.error("Please provide valid details.");
@@ -71,7 +65,7 @@ export default function ProfilePage() {
       const result = await dispatch(requestOtp({ phone })); // <-- Pass object
       if (requestOtp.fulfilled.match(result)) {
         setStep("otp");
-        showToast("OTP sent to new phone number");
+        toast.success("OTP sent to new phone number");
       } else {
         toast.error(result.payload as string);
       }
@@ -79,9 +73,8 @@ export default function ProfilePage() {
       // Just updating name
       const result = await dispatch(updateUserProfile({ id: user?._id || "", fullName: name }));
       if (updateUserProfile.fulfilled.match(result)) {
-        setCurrentUser({ ...currentUser, name } as any);
         setIsEditing(false);
-        showToast("Profile updated successfully!");
+        toast.success("Profile updated successfully!");
       } else {
         toast.error(result.payload as string);
       }
@@ -102,11 +95,10 @@ export default function ProfilePage() {
     }));
 
     if (updateUserProfile.fulfilled.match(result)) {
-      setCurrentUser({ name, email: phone + "@sarvam.in" });
       setIsEditing(false);
       setStep("edit");
       setOtp("");
-      showToast("Profile and Phone updated successfully!");
+      toast.success("Profile and Phone updated successfully!");
     } else {
       toast.error(result.payload as string);
     }
@@ -114,8 +106,7 @@ export default function ProfilePage() {
 
   const handleSignOut = () => {
     dispatch(logout());
-    setCurrentUser(null);
-    showToast("Logged out successfully");
+    toast.success("Logged out successfully");
     router.push("/signin");
   };
 

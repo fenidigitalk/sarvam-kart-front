@@ -1,31 +1,76 @@
 "use client";
 
+import { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { PRODUCTS_CATALOG } from "@/lib/data";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
+import { api } from "@/lib/axios";
+import { Folder } from "lucide-react";
+
+interface Category {
+  _id: string;
+  title: string;
+  image?: string;
+  count: number;
+}
 
 export default function AllCollectionPage() {
-  // Category wise group
-  const categoryMap = PRODUCTS_CATALOG.reduce(
-    (acc, product) => {
-      if (!acc[product.category]) {
-        acc[product.category] = {
-          title: product.category,
-          image: product.image,
-          count: 0,
-        };
+  const [collections, setCollections] = useState<Category[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  const fetchCollections = async (pageNumber: number) => {
+    if (loading || !hasMore) return;
+    setLoading(true);
+    try {
+      const res = await api.get(`/category?page=${pageNumber}&limit=10`);
+      const newCollections = res.data.data || [];
+      const totalRecords = res.data.pagination?.totalRecords || 0;
+      
+      setCollections((prev) => {
+        // Prevent duplicates
+        const existingIds = new Set(prev.map(c => c._id));
+        const filteredNew = newCollections.filter((c: Category) => !existingIds.has(c._id));
+        return [...prev, ...filteredNew];
+      });
+
+      if (collections.length + newCollections.length >= totalRecords || newCollections.length === 0) {
+        setHasMore(false);
       }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      acc[product.category].count += 1;
+  useEffect(() => {
+    fetchCollections(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-      return acc;
+  const lastElementRef = useCallback(
+    (node: HTMLDivElement) => {
+      if (loading) return;
+      if (observer.current) observer.current.disconnect();
+
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setPage((prevPage) => {
+            const nextPage = prevPage + 1;
+            fetchCollections(nextPage);
+            return nextPage;
+          });
+        }
+      });
+
+      if (node) observer.current.observe(node);
     },
-    {} as Record<string, { title: string; image: string; count: number }>,
+    [loading, hasMore]
   );
-
-  const collections = Object.values(categoryMap);
 
   return (
     <>
@@ -59,49 +104,53 @@ export default function AllCollectionPage() {
 
       <section className="w-full py-10 px-4 md:px-8">
         <div className="max-w-7xl mx-auto">
-          {/* Heading */}
-          {/* <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-bold">All Collections</h2>
-            <p className="text-gray-500 mt-2">Explore product categories</p>
-          </div> */}
-
           {/* Collection Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {collections.map((item, index) => (
-              <Link
-                key={index}
-                href={
-                  item.title === "All"
-                    ? "/category"
-                    : `/category?category=${encodeURIComponent(item.title)}`
-                }
-                className="block"
-              >
-                <div className="relative overflow-hidden rounded-[28px] group shadow-md hover:shadow-xl transition duration-300 bg-white cursor-pointer">
-                  {/* Image */}
-                  <div className="relative h-[420px] overflow-hidden">
-                    <Image
-                      src={item.image}
-                      alt={item.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition duration-500"
-                    />
-                  </div>
+            {collections.map((item, index) => {
+              const isLastElement = index === collections.length - 1;
+              return (
+                <Link
+                  key={item._id}
+                  href={`/category?category=${encodeURIComponent(item.title)}`}
+                  className="block"
+                  ref={isLastElement ? lastElementRef : null}
+                >
+                  <div className="relative overflow-hidden rounded-[28px] group shadow-md hover:shadow-xl transition duration-300 bg-white cursor-pointer border border-slate-100">
+                    {/* Image */}
+                    <div className="relative h-[420px] overflow-hidden bg-slate-50 flex items-center justify-center">
+                      {item.image ? (
+                        <Image
+                          src={item.image}
+                          alt={item.title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition duration-500"
+                        />
+                      ) : (
+                        <Folder className="w-16 h-16 text-slate-300" />
+                      )}
+                    </div>
 
-                  {/* Bottom Floating Card */}
-                  <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-lg w-[85%] py-3 px-3 text-center">
-                    <h3 className="text-lg font-semibold text-black">
-                      {item.title}
-                    </h3>
+                    {/* Bottom Floating Card */}
+                    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-lg w-[85%] py-3 px-3 text-center border border-slate-100">
+                      <h3 className="text-lg font-semibold text-black truncate px-2">
+                        {item.title}
+                      </h3>
 
-                    <p className="text-gray-500 text-sm mt-1">
-                      ({item.count} Products)
-                    </p>
+                      <p className="text-gray-500 text-sm mt-1">
+                        ({item.count || 0} Products)
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
+          
+          {loading && (
+            <div className="w-full flex justify-center py-8">
+              <div className="animate-spin w-8 h-8 border-4 border-slate-200 border-t-[#00A759] rounded-full"></div>
+            </div>
+          )}
         </div>
       </section>
 

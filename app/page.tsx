@@ -4,7 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
-import { PRODUCTS_CATALOG } from "@/lib/data";
+import { api } from "@/lib/axios";
+import AddToCartButton from "@/components/AddToCartButton";
 import {
   ShoppingCart,
   Heart,
@@ -16,6 +17,9 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
+import { fetchCategories } from "@/store/slices/categorySlice";
 
 const FEATURED_CATEGORIES = [
   {
@@ -50,20 +54,20 @@ const bannerImages = [
 
 export default function HomePage() {
   const [hlOffset, setHlOffset] = useState(0);
-  const [heroIdx, setHeroIdx] = useState(0);
-  const heroImages = PRODUCTS_CATALOG.slice(0, 5);
+  const [current, setCurrent] = useState(0);
+
+  const [newArrivals, setNewArrivals] = useState<any[]>([]);
+  const [bestSellers, setBestSellers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const dispatch = useDispatch<AppDispatch>();
+  const { categories, loading: categoriesLoading } = useSelector((state: RootState) => state.category);
 
   useEffect(() => {
-    const t = setInterval(
-      () => setHeroIdx((i) => (i + 1) % heroImages.length),
-      3000,
-    );
-    return () => clearInterval(t);
-  }, []);
-
-  const newArrivals = PRODUCTS_CATALOG.slice(0, 5);
-  const trending = PRODUCTS_CATALOG.slice(5, 10);
-  const [current, setCurrent] = useState(0);
+    if (categories.length === 0 && !categoriesLoading) {
+      dispatch(fetchCategories());
+    }
+  }, [dispatch, categories.length, categoriesLoading]);
 
   // Auto slide
   useEffect(() => {
@@ -72,6 +76,25 @@ export default function HomePage() {
     }, 4000);
 
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch New Arrivals and Best Sellers
+  useEffect(() => {
+    async function fetchHomeProducts() {
+      try {
+        const [naRes, bsRes] = await Promise.all([
+          api.get('/product?categoryHandle=new-arrivals&limit=5'),
+          api.get('/product?categoryHandle=best-seller&limit=5')
+        ]);
+        setNewArrivals(naRes.data.data || []);
+        setBestSellers(bsRes.data.data || []);
+      } catch (err) {
+        console.error("Failed to fetch home products", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchHomeProducts();
   }, []);
 
   return (
@@ -113,75 +136,6 @@ export default function HomePage() {
         </section>
 
         <main className="max-w-[1280px] mx-auto px-5 py-6">
-          {/* HERO */}
-          {/* <div className="relative flex justify-between items-center overflow-hidden rounded-[20px] px-14 py-12 min-h-[280px] mb-8 bg-[#00A759]">
-            <div className="absolute -right-10 -top-10 w-[300px] h-[300px] rounded-full bg-[rgba(255,107,53,0.08)]" />
-            <div className="absolute right-[60px] -bottom-[60px] w-[200px] h-[200px] rounded-full bg-[rgba(255,163,82,0.06)]" />
-
-            <div className="relative z-10 max-w-[500px]">
-              <div className="inline-flex items-center gap-1 bg-white/10 border border-white/20 border border-[rgba(255,107,53,0.3)] rounded-full px-3 py-1 mb-4">
-                <Zap className="w-3 h-3 text-[#ffa352]" />
-                <span className="text-[11px] font-bold tracking-widest text-[#ffff]">
-                  NEW ARRIVALS DROP
-                </span>
-              </div>
-
-              <h1 className="text-[42px] font-black text-white leading-[1.1] mb-4 font-serif">
-                Premium Quality,
-                <br />
-                <span className="text-#ffff">Unbeatable Prices</span>
-              </h1>
-
-              <p className="text-sm text-white mb-7 leading-6">
-                Discover 1000+ curated products across 40+ categories. From
-                fashion to electronics, we've got everything you need.
-              </p>
-
-              <div className="flex gap-3">
-                <Link href="/category">
-                  <button className="bg-white/10 border border-white/20 text-white px-7 py-3 rounded-xl text-sm font-bold  hover:-translate-y-0.5 transition">
-                    Shop Now →
-                  </button>
-                </Link>
-
-                <Link href="/boutique">
-                  <button className="bg-white/10 border border-white/20 text-white px-7 py-3 rounded-xl text-sm font-semibold hover:bg-white/15 transition">
-                    Browse Categories
-                  </button>
-                </Link>
-              </div>
-            </div>
-
-            <div className="relative z-10 w-[350px]">
-             
-              <div className="relative w-[340px] h-[240px] rounded-[20px] overflow-hidden border-[3px] border-[rgba(255,163,82,0.3)] shadow-[0_20px_60px_rgba(0,0,0,0.4)]">
-                {heroImages.map((p, i) => (
-                  <div
-                    key={p.id}
-                    className={`absolute inset-0 transition-opacity duration-600 ${i === heroIdx ? "opacity-100" : "opacity-0"}`}
-                  >
-                    <Image
-                      src={p.image}
-                      alt={p.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-              
-              <div className="flex justify-center gap-1.5 mt-3">
-                {heroImages.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setHeroIdx(i)}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${i === heroIdx ? "w-4 bg-white" : "w-1.5 bg-white/40"}`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div> */}
-
           {/* CATEGORIES */}
           <div className="mb-10">
             <div className="flex justify-between items-center mb-5">
@@ -201,27 +155,32 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-6 gap-3">
-              {FEATURED_CATEGORIES.map((cat, i) => (
-                <Link
-                  key={i}
-                  href={`/category?category=${encodeURIComponent(cat.name)}`}
-                >
-                  <div
-                    className="rounded-2xl text-center p-5 cursor-pointer transition hover:-translate-y-1 hover:shadow-lg"
-                    style={{
-                      background: cat.color,
-                      border: `1.5px solid ${cat.border}`,
-                    }}
+            {categoriesLoading && categories.length === 0 ? (
+              <div className="flex justify-center py-10">
+                <div className="animate-spin w-8 h-8 border-4 border-slate-200 border-t-[#00A759] rounded-full"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 sm:gap-6">
+                {categories.slice(0, 6).map((cat, i) => (
+                  <Link
+                    key={cat._id || i}
+                    href={`/category?category=${encodeURIComponent(cat.title)}`}
+                    className="flex flex-col items-center group bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all cursor-pointer"
                   >
-                    <div className="text-3xl mb-2">{cat.icon}</div>
-                    <div className="text-xs font-bold text-slate-700">
-                      {cat.name}
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mb-3 bg-slate-50 border border-slate-100 overflow-hidden">
+                      {cat.image ? (
+                        <img src={cat.image} alt={cat.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      ) : (
+                        <div className="text-2xl sm:text-3xl">📁</div>
+                      )}
                     </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                    <div className="text-xs sm:text-sm font-bold text-slate-700 text-center leading-tight line-clamp-2">
+                      {cat.title}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
           {/* TODAY'S HIGHLIGHT */}
           <div className="mb-10">
@@ -265,49 +224,8 @@ export default function HomePage() {
               </button>
             </div>
           </div>
-          {/* TRUST BADGES */}
-          {/* <div className="grid grid-cols-4 gap-3 mb-9">
-            {[
-              {
-                icon: Truck,
-                title: "Free Delivery",
-                desc: "On orders above ₹499",
-                color: "#ff6b35",
-              },
-              {
-                icon: ShieldCheck,
-                title: "100% Authentic",
-                desc: "Certified genuine products",
-                color: "#22c55e",
-              },
-              {
-                icon: Award,
-                title: "Easy Returns",
-                desc: "7-day return policy",
-                color: "#f59e0b",
-              },
-              {
-                icon: Zap,
-                title: "Fast Support",
-                desc: "24/7 customer service",
-                color: "#6366f1",
-              },
-            ].map((x, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 bg-white border border-slate-100 rounded-xl px-5 py-4 shadow-sm"
-              >
-                <x.icon className="w-5 h-5" style={{ color: x.color }} />
-                <div>
-                  <div className="text-sm font-bold text-slate-800">
-                    {x.title}
-                  </div>
-                  <div className="text-xs text-slate-400">{x.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div> */}
-          {/* PRODUCTS */}
+          
+          {/* PRODUCTS: New Arrivals */}
           <div className="mb-10">
             <div className="flex justify-between items-center mb-5">
               <div>
@@ -318,25 +236,57 @@ export default function HomePage() {
                   Fresh drops this week
                 </p>
               </div>
+              <Link
+                href="/category?category=New%20Arrivals"
+                className="flex items-center gap-1 text-sm font-semibold text-[#00A759]"
+              >
+                See All <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
 
-            <div className="grid grid-cols-5 gap-4">
-              {newArrivals.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            {loading ? (
+              <div className="flex justify-center py-10">
+                <div className="animate-spin w-8 h-8 border-4 border-slate-200 border-t-[#00A759] rounded-full"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {newArrivals.map((product) => (
+                  <ProductCard key={product._id} product={product} />
+                ))}
+              </div>
+            )}
           </div>
-          {/* TRENDING */}
+          
+          {/* TRENDING / Best Seller */}
           <div className="mb-10">
-            <h2 className="text-xl font-extrabold text-slate-800 mb-5">
-              🔥 Trending Now
-            </h2>
-
-            <div className="grid grid-cols-5 gap-4">
-              {trending.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+            <div className="flex justify-between items-center mb-5">
+              <div>
+                <h2 className="text-xl font-extrabold text-slate-800">
+                  🔥 Best Sellers
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Most loved by our customers
+                </p>
+              </div>
+              <Link
+                href="/category?category=Best%20Seller"
+                className="flex items-center gap-1 text-sm font-semibold text-[#00A759]"
+              >
+                See All <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
+
+            {loading ? (
+              <div className="flex justify-center py-10">
+                <div className="animate-spin w-8 h-8 border-4 border-slate-200 border-t-[#00A759] rounded-full"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {bestSellers.map((product) => (
+                  <ProductCard key={product._id} product={product} />
+                ))}
+              </div>
+            )}
           </div>
         </main>
       </div>
@@ -347,22 +297,25 @@ export default function HomePage() {
 
 /* PRODUCT CARD */
 function ProductCard({ product }: { product: any }) {
+  const imageUrl = product.images?.[0]?.src || "/images/placeholder.jpg";
+  const categoryName = product.categories?.[0]?.title || "Uncategorized";
+  
   return (
-    <Link href={`/product/${product.id}`}>
+    <Link href={`/product/${product.shopifyId}`}>
       <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden cursor-pointer transition hover:-translate-y-1 hover:shadow-xl">
         <div className="relative aspect-square bg-slate-50">
           <Image
-            src={product.image}
-            alt={product.name}
+            src={imageUrl}
+            alt={product.title}
             fill
             className="object-cover"
           />
 
-          {(product.badge || product.tag) && (
+          {/* {(product.status === "active") && (
             <span className="absolute top-2 left-2 text-[10px] px-2 py-1 rounded bg-[#dff3ea] text-[#00A759] font-bold">
-              {product.badge || product.tag}
+              NEW
             </span>
-          )}
+          )} */}
 
           <button
             onClick={(e) => e.preventDefault()}
@@ -373,33 +326,26 @@ function ProductCard({ product }: { product: any }) {
         </div>
 
         <div className="p-3">
-          <div className="text-[10px] uppercase text-slate-400 font-semibold">
-            {product.category}
+          <div className="text-[10px] uppercase text-slate-400 font-semibold truncate">
+            {categoryName}
           </div>
 
           <div className="text-sm font-bold text-slate-800 line-clamp-1">
-            {product.name}
+            {product.title}
           </div>
-
-          {product.rating && (
-            <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
-              <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-              {product.rating}
-            </div>
-          )}
 
           <div className="flex justify-between items-center mt-2">
             <div className="font-bold text-slate-800">
-              {product.currency === "USD" ? "$" : "₹"}
-              {product.price.toLocaleString()}
+              ₹{(product.basePrice || 0).toLocaleString()}
             </div>
 
-            <button
-              onClick={(e) => e.preventDefault()}
-              className="bg-[#00A759] hover:bg-[#008c4a] text-white p-2 rounded-lg"
-            >
-              <ShoppingCart className="w-4 h-4" />
-            </button>
+            <div className="z-10 mt-1" onClick={(e) => e.preventDefault()}>
+              <AddToCartButton 
+                product={product} 
+                hideLabel={true}
+                className="!p-2 h-9 w-20 flex-shrink-0" 
+              />
+            </div>
           </div>
         </div>
       </div>

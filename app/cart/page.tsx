@@ -17,33 +17,42 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useCart } from "@/context/cartContext";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
+import { addToCartAsync, removeFromCartAsync, updateQuantityAsync, fetchCartAsync, clearCartState, toggleWishlist } from "@/store/slices/cartSlice";
+import { checkoutOrderAsync } from "@/store/slices/orderSlice";
 
 export default function CartPage() {
-  const {
-    cart,
-    wishlist,
-    totals,
-    removeFromCart,
-    updateQuantity,
-    toggleWishlist,
-    moveWishlistToCart,
-    clearCart,
-    showToast,
-  } = useCart();
+  const dispatch = useDispatch<AppDispatch>();
+  const { items: cart, wishlist, totalQuantity, totalPrice } = useSelector((state: RootState) => state.cart);
+  const { token } = useSelector((state: RootState) => state.auth);
+
+  const totals = {
+    itemCount: cart.length,
+    inr: totalPrice,
+    usd: 0 // Simplification for now
+  };
+
+  const showToast = (msg: string) => alert(msg); // Temporary fallback for showToast
 
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [activeTab, setActiveTab] = useState<"bag" | "wishlist">("bag");
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) {
       showToast("Shopping Bag is empty!");
       return;
     }
-    setOrderPlaced(true);
-    showToast("Minting shipping logistics code...");
+    const result = await dispatch(checkoutOrderAsync());
+    if (checkoutOrderAsync.fulfilled.match(result)) {
+      setOrderPlaced(true);
+      dispatch(clearCartState());
+      showToast("Order placed successfully!");
+    } else {
+      showToast(result.payload as string || "Failed to place order.");
+    }
   };
 
   return (
@@ -109,7 +118,7 @@ export default function CartPage() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                 <button
                   onClick={() => {
-                    clearCart();
+                    dispatch(clearCartState());
                     setOrderPlaced(false);
                   }}
                   className="px-6 py-3 bg-slate-950 text-white rounded-xl text-xs font-semibold cursor-pointer hover:bg-slate-800 transition"
@@ -154,18 +163,18 @@ export default function CartPage() {
                 ) : (
                   cart.map((item) => (
                     <motion.div
-                      key={item.product.id}
+                      key={item._id}
                       layout
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 10 }}
                       className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md transition duration-300"
                     >
-                      <Link href={`/product/${item.product.id}`}>
+                      <Link href={`/product/${item.productId?.shopifyId || item.productId?._id}`}>
                         <div className="w-20 h-20 bg-slate-50 rounded-xl relative cursor-pointer overflow-hidden shrink-0 border border-slate-100">
                           <Image
-                            src={item.product.image}
-                            alt={item.product.name}
+                            src={item.productId?.images?.[0]?.src || "/images/placeholder.jpg"}
+                            alt={item.title}
                             fill
                             className="object-cover hover:scale-105 transition-transform"
                             referrerPolicy="no-referrer"
@@ -175,28 +184,31 @@ export default function CartPage() {
 
                       <div className="flex-1 min-w-0 space-y-1">
                         <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400">
-                          {item.product.category}
+                          {item.productId?.category || "Category"}
                         </span>
-                        <Link href={`/product/${item.product.id}`}>
+                        <Link href={`/product/${item.productId?.shopifyId || item.productId?._id}`}>
                           <h4 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1 hover:text-[#00A759] cursor-pointer">
-                            {item.product.name}
+                            {item.title}
                           </h4>
                         </Link>
                         <div className="text-xs font-mono font-bold text-slate-800">
-                          {item.product.currency === "USD" ? "$" : "₹"}
-                          {item.product.price.toLocaleString()}
+                          ₹{item.price.toLocaleString()}
                         </div>
-                        {item.product.brand && (
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            {item.product.brand}
-                          </span>
-                        )}
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          {item.sku}
+                        </span>
                       </div>
 
                       {/* Quantity Stepper */}
                       <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 p-0.5">
                         <button
-                          onClick={() => updateQuantity(item.product.id, -1)}
+                          onClick={() => {
+                            if (item.quantity - 1 <= 0) {
+                              dispatch(removeFromCartAsync(item._id));
+                            } else {
+                              dispatch(updateQuantityAsync({ cartItemId: item._id, quantity: item.quantity - 1 }));
+                            }
+                          }}
                           className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-white rounded-lg transition"
                         >
                           <Minus className="w-3 h-3" />
@@ -205,7 +217,7 @@ export default function CartPage() {
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.product.id, 1)}
+                          onClick={() => dispatch(updateQuantityAsync({ cartItemId: item._id, quantity: item.quantity + 1 }))}
                           className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-white rounded-lg transition"
                         >
                           <Plus className="w-3 h-3" />
@@ -215,16 +227,14 @@ export default function CartPage() {
                       {/* Line Total */}
                       <div className="hidden sm:block text-right">
                         <span className="text-sm font-mono font-bold text-slate-800">
-                          {item.product.currency === "USD" ? "$" : "₹"}
-                          {(
-                            item.product.price * item.quantity
-                          ).toLocaleString()}
+                          ₹
+                          {(item.price * item.quantity).toLocaleString()}
                         </span>
                       </div>
 
                       {/* Delete */}
                       <button
-                        onClick={() => removeFromCart(item.product.id)}
+                        onClick={() => dispatch(removeFromCartAsync(item._id))}
                         className="p-2 text-slate-300 hover:text-red-500 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -259,26 +269,6 @@ export default function CartPage() {
                       </div>
                     )}
 
-                    <div className="flex justify-between text-xs">
-                      <span>Packaging & Logistics:</span>
-                      <span className="text-[#00A759] font-semibold">FREE</span>
-                    </div>
-
-                    <div className="flex justify-between text-[11px] text-slate-400">
-                      <span>Est. GST / Duty:</span>
-                      <span>Auto-calculated at review</span>
-                    </div>
-
-                    <div className="p-2.5 bg-emerald-50 text-emerald-900 rounded-lg text-[10px] flex items-center justify-between font-medium">
-                      <span className="flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>WELCOME10 applied</span>
-                      </span>
-                      <span className="font-bold text-emerald-700">
-                        -$10 / -₹800
-                      </span>
-                    </div>
-
                     <div className="pt-4 border-t border-slate-100 flex justify-between items-baseline">
                       <span className="text-sm font-bold text-slate-950">
                         Grand Total:
@@ -287,14 +277,14 @@ export default function CartPage() {
                         {totals.inr > 0 && (
                           <p className="text-lg font-mono font-extrabold text-slate-900">
                             ₹
-                            {Math.max(0, totals.inr - 800).toLocaleString(
+                            {totals.inr.toLocaleString(
                               "en-IN",
                             )}
                           </p>
                         )}
                         {totals.usd > 0 && (
                           <p className="text-lg font-mono font-extrabold text-slate-900">
-                            ${Math.max(0, totals.usd - 10).toLocaleString()}
+                            ${totals.usd.toLocaleString()}
                           </p>
                         )}
                       </div>
@@ -346,18 +336,18 @@ export default function CartPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {wishlist.map((product) => (
                     <motion.div
-                      key={product.id}
+                      key={product.shopifyId || product._id || product.id}
                       layout
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       className="bg-white border border-slate-100 rounded-2xl overflow-hidden hover:shadow-lg transition group"
                     >
-                      <Link href={`/product/${product.id}`}>
+                      <Link href={`/product/${product.shopifyId || product._id || product.id}`}>
                         <div className="relative aspect-[4/3] bg-slate-50 overflow-hidden cursor-pointer">
                           <Image
-                            src={product.image}
-                            alt={product.name}
+                            src={product.images?.[0]?.src || product.image || "/images/placeholder.jpg"}
+                            alt={product.title || product.name}
                             fill
                             className="object-cover group-hover:scale-105 transition-transform duration-500"
                             referrerPolicy="no-referrer"
@@ -367,28 +357,35 @@ export default function CartPage() {
                       <div className="p-4 space-y-3">
                         <div>
                           <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 block">
-                            {product.category}
+                            {product.category || product.categories?.[0]?.title || "Category"}
                           </span>
-                          <Link href={`/product/${product.id}`}>
+                          <Link href={`/product/${product.shopifyId || product._id || product.id}`}>
                             <h4 className="text-sm font-bold text-slate-900 hover:text-[#00A759] cursor-pointer truncate">
-                              {product.name}
+                              {product.title || product.name}
                             </h4>
                           </Link>
                           <span className="text-sm font-mono font-bold text-slate-800 mt-1 block">
-                            {product.currency === "USD" ? "$" : "₹"}
-                            {product.price.toLocaleString()}
+                            ₹{(product.basePrice || product.price || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => moveWishlistToCart(product)}
+                            onClick={() => {
+                              if (!token) return alert("Please login first");
+                              dispatch(addToCartAsync({ 
+                                productId: product._id || product.id, 
+                                variantId: product.variants?.[0]?.shopifyVariantId || product.variants?.[0]?._id || "default", 
+                                quantity: 1 
+                              }));
+                              dispatch(toggleWishlist(product));
+                            }}
                             className="flex-1 px-3 py-2 bg-slate-900 hover:bg-[#00A759] hover:text-slate-950 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
                           >
                             <ShoppingBag className="w-3.5 h-3.5" />
                             <span>Move to Bag</span>
                           </button>
                           <button
-                            onClick={() => toggleWishlist(product)}
+                            onClick={() => dispatch(toggleWishlist(product))}
                             className="p-2 border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition"
                           >
                             <X className="w-4 h-4" />

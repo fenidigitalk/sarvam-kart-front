@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCart } from "@/context/cartContext";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import { useDispatch, useSelector } from "react-redux";
@@ -23,8 +22,7 @@ import { toast } from "sonner";
 export default function LoginPage() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-  const { loading, error, isNewUser } = useSelector((state: RootState) => state.auth);
-  const { setCurrentUser, showToast, currentUser } = useCart();
+  const { loading, error, isNewUser, user: currentUser } = useSelector((state: RootState) => state.auth);
 
   const [step, setStep] = useState<"phone" | "otp" | "profile">("phone");
   const [phone, setPhone] = useState("");
@@ -41,7 +39,7 @@ export default function LoginPage() {
     const result = await dispatch(requestOtp({ phone }));
     if (requestOtp.fulfilled.match(result)) {
       setStep("otp");
-      showToast("OTP sent successfully!");
+      toast.success("OTP sent successfully!");
     } else {
       toast.error(result.payload as string);
     }
@@ -59,13 +57,9 @@ export default function LoginPage() {
     if (verifyOtp.fulfilled.match(result)) {
       if (result.payload.isNewUser) {
         setStep("profile");
-        showToast("Please complete your profile.");
+        toast.success("Please complete your profile.");
       } else {
-        setCurrentUser({
-          name: result.payload.user?.fullName || "User",
-          email: phone + "@sarvam.in",
-        });
-        showToast("Logged in securely ✓");
+        toast.success("Logged in securely ✓");
         router.push("/");
       }
     } else {
@@ -82,11 +76,7 @@ export default function LoginPage() {
 
     const result = await dispatch(addReseller({ name, number: phone }));
     if (addReseller.fulfilled.match(result)) {
-      setCurrentUser({
-        name: name,
-        email: phone + "@sarvam.in",
-      });
-      showToast("Account created and logged in securely ✓");
+      toast.success("Account created and logged in securely ✓");
       router.push("/");
     } else {
       toast.error(result.payload as string);
