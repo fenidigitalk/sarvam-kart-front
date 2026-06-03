@@ -35,7 +35,11 @@ export default function AdminLayout({
     if (!token) {
       router.push("/imadmin/login");
     } else {
-      setIsAuthenticated(true);
+      if (pathname === "/imadmin" || pathname === "/imadmin/") {
+        router.push("/imadmin/orders");
+      } else {
+        setIsAuthenticated(true);
+      }
     }
   }, [pathname, router]);
 
@@ -81,17 +85,6 @@ export default function AdminLayout({
         </div>
 
         <nav className="flex-1 px-4 space-y-2 mt-4">
-          <Link
-            href="/imadmin"
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
-              pathname === "/imadmin"
-                ? "bg-[#00A759] text-white"
-                : "text-slate-400 hover:bg-slate-900 hover:text-white"
-            }`}
-          >
-            <LayoutDashboard className="w-5 h-5" />
-            <span className="font-medium text-sm">Dashboard</span>
-          </Link>
 
           <Link
             href="/imadmin/orders"

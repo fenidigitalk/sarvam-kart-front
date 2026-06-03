@@ -10,12 +10,14 @@ import Footer from "@/components/footer";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { requestOtp, updateUserProfile, logout } from "@/store/slices/authSlice";
+import { fetchMyOrderStatsAsync } from "@/store/slices/orderSlice";
 import { toast } from "sonner";
 
 export default function ProfilePage() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const { user, loading, error } = useSelector((state: RootState) => state.auth);
+  const { myStats } = useSelector((state: RootState) => state.order);
 
   const [isEditing, setIsEditing] = useState(false);
   const [step, setStep] = useState<"edit" | "otp">("edit");
@@ -28,8 +30,9 @@ export default function ProfilePage() {
     if (user) {
       setName(user.fullName || "");
       setPhone(user.phone || "");
+      dispatch(fetchMyOrderStatsAsync());
     }
-  }, [user]);
+  }, [user, dispatch]);
 
   if (!user) {
     return (
@@ -168,7 +171,14 @@ export default function ProfilePage() {
                 <p className="text-sm text-slate-500 mt-1">{phone ? `+91 ${phone}` : "No phone available"}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-4">
+              <div className="pt-2">
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex justify-between items-center mb-1">
+                  <span className="text-sm font-semibold text-red-600">Pending Amount</span>
+                  <span className="text-lg font-bold text-red-600">₹{myStats?.pendingAmount?.toLocaleString("en-IN") || 0}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <Link href="/orders">
                   <button className="w-full py-3.5 bg-slate-950 text-white rounded-xl text-xs font-bold hover:bg-[#ffa352] hover:text-slate-950 transition">
                     My Orders

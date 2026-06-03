@@ -44,7 +44,7 @@ export default function AdminLoginPage() {
     const result = await dispatch(verifyOtp({ phone, otp, isAdminLogin: true }));
     
     if (verifyOtp.fulfilled.match(result)) {
-      router.push("/imadmin");
+      router.push("/imadmin/orders");
     } else {
       toast.error(result.payload as string);
     }

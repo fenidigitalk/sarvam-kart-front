@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import CommonTable from "@/components/commonTable";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
+import { fetchAllOrdersAsync, fetchOrderStatsAsync, updateAdminOrderAsync, deleteOrderAsync } from "@/store/slices/orderSlice";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 const PRODUCTS_CATALOG = [
@@ -68,8 +71,10 @@ const PRODUCTS_CATALOG = [
 ];
 
 const VENDORS = ["Sarvam Signature", "Minimalist Co.", "Urban Loft"];
-const PAYMENT_OPTIONS = ["Cash", "Online", "Pending"];
+const PAYMENT_OPTIONS = ["Cash", "Online", "Pending"]; // This is payment mode
+const PAYMENT_STATUS_OPTIONS = ["Pending", "Partial", "Paid"];
 const DELIVERY_OPTIONS = ["Courier", "By Hand"];
+const ORDER_STATUS_OPTIONS = ["Pending","Completed"];
 const ITEMS_PER_PAGE = 8;
 
 const generateOrderId = () =>
@@ -77,7 +82,16 @@ const generateOrderId = () =>
   Date.now().toString().slice(-8) +
   Math.random().toString(36).slice(2, 5).toUpperCase();
 
-type Product = (typeof PRODUCTS_CATALOG)[number];
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  currency: string;
+  image: string;
+  brand: string;
+  category: string;
+  variantId?: string;
+}
 
 // Each order line item: product + qty
 interface OrderItem {
@@ -88,17 +102,22 @@ interface OrderItem {
 // An order belongs to one vendor, can have multiple products
 interface Order {
   id: string;
+  orderNumber: string;
   vendor: string;
   items: OrderItem[];
   paymentMethod: string;
+  paymentStatus: string;
   deliveryMethod: string;
+  orderStatus: string;
 }
 
 interface FormState {
   vendor: string;
   items: OrderItem[];
   paymentMethod: string;
+  paymentStatus: string;
   deliveryMethod: string;
+  orderStatus: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -135,6 +154,31 @@ const PILL_COLORS: Record<
     activeBg: "bg-orange-100",
     activeText: "text-orange-700",
     activeBorder: "border-orange-400",
+  },
+  Processing: {
+    activeBg: "bg-blue-100",
+    activeText: "text-blue-700",
+    activeBorder: "border-blue-400",
+  },
+  Completed: {
+    activeBg: "bg-emerald-100",
+    activeText: "text-emerald-700",
+    activeBorder: "border-emerald-400",
+  },
+  Paid: {
+    activeBg: "bg-green-100",
+    activeText: "text-green-700",
+    activeBorder: "border-green-400",
+  },
+  Partial: {
+    activeBg: "bg-yellow-100",
+    activeText: "text-yellow-700",
+    activeBorder: "border-yellow-400",
+  },
+  Cancelled: {
+    activeBg: "bg-red-100",
+    activeText: "text-red-700",
+    activeBorder: "border-red-400",
   },
 };
 
@@ -183,6 +227,41 @@ const PILL_FULL: Record<
     activeText: "text-orange-700",
     activeBorder: "border-orange-400",
   },
+  Processing: {
+    bg: "bg-blue-50",
+    text: "text-blue-500",
+    activeBg: "bg-blue-100",
+    activeText: "text-blue-700",
+    activeBorder: "border-blue-400",
+  },
+  Completed: {
+    bg: "bg-emerald-50",
+    text: "text-emerald-500",
+    activeBg: "bg-emerald-100",
+    activeText: "text-emerald-700",
+    activeBorder: "border-emerald-400",
+  },
+  Paid: {
+    bg: "bg-green-50",
+    text: "text-green-500",
+    activeBg: "bg-green-100",
+    activeText: "text-green-700",
+    activeBorder: "border-green-400",
+  },
+  Partial: {
+    bg: "bg-yellow-50",
+    text: "text-yellow-500",
+    activeBg: "bg-yellow-100",
+    activeText: "text-yellow-700",
+    activeBorder: "border-yellow-400",
+  },
+  Cancelled: {
+    bg: "bg-red-50",
+    text: "text-red-500",
+    activeBg: "bg-red-100",
+    activeText: "text-red-700",
+    activeBorder: "border-red-400",
+  },
 };
 
 // ─── Static Badge (view panel) ────────────────────────────────────────────────
@@ -224,8 +303,8 @@ function PillToggle({
           <button
             key={opt}
             type="button"
-            onClick={() => onChange(opt)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${selected ? `${c.activeBg} ${c.activeText} ${c.activeBorder}` : `${c.bg} ${c.text} border-transparent hover:border-gray-200`}`}
+            onClick={() => onChange(selected ? "" : opt)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${selected ? `${c.activeBg} ${c.activeText} ${c.activeBorder}` : `${c.bg} ${c.text} border-transparent hover:border-gray-200`}`}
           >
             {opt}
           </button>
@@ -598,22 +677,16 @@ function OrderFormModal({
           {/* Vendor */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-              Vendor *
+              Customer / Reseller Name
             </label>
-            <select
+            <input
+              type="text"
               value={form.vendor}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, vendor: e.target.value, items: [] }))
-              }
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none bg-gray-50 appearance-none cursor-pointer"
-            >
-              <option value="">Select vendor</option>
-              {VENDORS.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
+              onChange={(e) => setForm((f) => ({ ...f, vendor: e.target.value }))}
+              readOnly={!!editingId}
+              className={`w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none ${editingId ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "bg-gray-50"}`}
+              placeholder="Enter name"
+            />
           </div>
 
           {/* Add Products */}
@@ -725,16 +798,28 @@ function OrderFormModal({
             )}
           </div>
 
-          {/* Payment Method */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Payment Method
-            </label>
-            <PillToggle
-              options={PAYMENT_OPTIONS}
-              value={form.paymentMethod}
-              onChange={(v) => setForm((f) => ({ ...f, paymentMethod: v }))}
-            />
+          {/* Payment Method & Status */}
+          <div className="grid gap-6">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Payment Method
+              </label>
+              <PillToggle
+                options={PAYMENT_OPTIONS}
+                value={form.paymentMethod}
+                onChange={(v) => setForm((f) => ({ ...f, paymentMethod: v }))}
+              />
+            </div>
+            {/* <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Payment Status
+              </label>
+              <PillToggle
+                options={PAYMENT_STATUS_OPTIONS}
+                value={form.paymentStatus}
+                onChange={(v) => setForm((f) => ({ ...f, paymentStatus: v }))}
+              />
+            </div> */}
           </div>
 
           {/* Delivery Method */}
@@ -746,6 +831,18 @@ function OrderFormModal({
               options={DELIVERY_OPTIONS}
               value={form.deliveryMethod}
               onChange={(v) => setForm((f) => ({ ...f, deliveryMethod: v }))}
+            />
+          </div>
+
+          {/* Order Status */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Order Status
+            </label>
+            <PillToggle
+              options={ORDER_STATUS_OPTIONS}
+              value={form.orderStatus}
+              onChange={(v) => setForm((f) => ({ ...f, orderStatus: v }))}
             />
           </div>
 
@@ -794,73 +891,86 @@ function OrderFormModal({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminOrderPage() {
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: "ORD-20240001",
-      vendor: "Sarvam Signature",
-      items: [
-        { product: PRODUCTS_CATALOG[0], qty: 2 },
-        { product: PRODUCTS_CATALOG[5], qty: 1 },
-      ],
-      paymentMethod: "Cash",
-      deliveryMethod: "Courier",
-    },
-    {
-      id: "ORD-20240002",
-      vendor: "Minimalist Co.",
-      items: [
-        { product: PRODUCTS_CATALOG[1], qty: 1 },
-        { product: PRODUCTS_CATALOG[4], qty: 1 },
-      ],
-      paymentMethod: "Online",
-      deliveryMethod: "",
-    },
-    {
-      id: "ORD-20240003",
-      vendor: "Urban Loft",
-      items: [{ product: PRODUCTS_CATALOG[2], qty: 3 }],
-      paymentMethod: "Pending",
-      deliveryMethod: "By Hand",
-    },
-  ]);
+  const dispatch = useDispatch<AppDispatch>();
+  const { allOrders, pagination, stats, loading } = useSelector((state: RootState) => state.order);
+
+  useEffect(() => {
+    dispatch(fetchOrderStatsAsync());
+  }, [dispatch]);
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [viewOrder, setViewOrder] = useState<Order | null>(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    dispatch(fetchAllOrdersAsync({ page: currentPage, limit: ITEMS_PER_PAGE, search: debouncedSearch }));
+  }, [dispatch, currentPage, debouncedSearch]);
+
+  const orders = useMemo<Order[]>(() => {
+    return allOrders.map((o) => ({
+      id: o._id,
+      orderNumber: o.orderNumber,
+      vendor: o.userId?.fullName || "Guest",
+      items: o.items.map((i: any) => ({
+        product: {
+          id: i.productId?._id || i.productId,
+          name: i.title,
+          price: i.price,
+          currency: "INR",
+          image: i.image || (i.productId?.images?.[0]?.src) || "",
+          brand: "",
+          category: "",
+          variantId: i.variantId,
+        },
+        qty: i.quantity,
+      })),
+      paymentMethod: o.paymentMode ? o.paymentMode.charAt(0).toUpperCase() + o.paymentMode.slice(1) : "",
+      paymentStatus: o.paymentStatus ? o.paymentStatus.charAt(0).toUpperCase() + o.paymentStatus.slice(1) : "Pending",
+      deliveryMethod: o.deliveryStatus === "pickup_by_customer" ? "By Hand" : (o.deliveryStatus === "courier" ? "Courier" : ""),
+      orderStatus: o.orderStatus ? o.orderStatus.charAt(0).toUpperCase() + o.orderStatus.slice(1) : "Pending",
+    }));
+  }, [allOrders]);
+
+
 
   const emptyForm: FormState = {
     vendor: "",
     items: [],
     paymentMethod: "",
+    paymentStatus: "Pending",
     deliveryMethod: "",
+    orderStatus: "Pending",
   };
   const [form, setForm] = useState<FormState>(emptyForm);
 
-  const updateOrderField = (
+  const updateOrderField = async (
     id: string,
-    field: "paymentMethod" | "deliveryMethod",
+    field: "paymentMethod" | "paymentStatus" | "deliveryMethod" | "orderStatus",
     value: string,
   ) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, [field]: value } : o)),
-    );
+    const data: any = {};
+    if (field === "paymentMethod") data.paymentMode = value ? value.toLowerCase() : "";
+    if (field === "paymentStatus") data.paymentStatus = value ? value.toLowerCase() : "";
+    if (field === "deliveryMethod") {
+      data.deliveryStatus = value === "By Hand" ? "pickup_by_customer" : (value === "Courier" ? "courier" : "");
+    }
+    if (field === "orderStatus") data.orderStatus = value ? value.toLowerCase() : "";
+    await dispatch(updateAdminOrderAsync({ orderId: id, data }));
+    dispatch(fetchOrderStatsAsync());
   };
 
-  const filtered = orders.filter(
-    (o) =>
-      o.vendor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.items.some((i) =>
-        i.product.name.toLowerCase().includes(searchQuery.toLowerCase()),
-      ),
-  );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const paginated = filtered.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
-  );
+  const totalPages = Math.max(1, Math.ceil((pagination?.totalRecords || 0) / ITEMS_PER_PAGE));
+  const paginated = orders; // Backend already paginated this
 
   const openAdd = () => {
     setForm(emptyForm);
@@ -872,7 +982,9 @@ export default function AdminOrderPage() {
       vendor: order.vendor,
       items: order.items,
       paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
       deliveryMethod: order.deliveryMethod,
+      orderStatus: order.orderStatus,
     });
     setEditingId(order.id);
     setShowModal(true);
@@ -883,25 +995,45 @@ export default function AdminOrderPage() {
     setForm(emptyForm);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.vendor || form.items.length === 0) {
       alert("Vendor and at least one product are required!");
       return;
     }
+    
+    // Convert Form back to backend structure
+    const data: any = {
+      items: form.items.map(i => ({
+        productId: i.product.id,
+        variantId: i.product.variantId || "11111111111111", // Fallback for mock data
+        quantity: i.qty,
+        price: i.product.price,
+        title: i.product.name
+      }))
+    };
+    
+    // Always send these fields so we can clear them if needed
+    data.paymentMode = form.paymentMethod ? form.paymentMethod.toLowerCase() : "";
+    data.paymentStatus = form.paymentStatus ? form.paymentStatus.toLowerCase() : "";
+    data.deliveryStatus = form.deliveryMethod === "By Hand" ? "pickup_by_customer" : (form.deliveryMethod === "Courier" ? "courier" : "");
+    if (form.orderStatus) data.orderStatus = form.orderStatus.toLowerCase();
+
     if (editingId) {
-      setOrders((prev) =>
-        prev.map((o) => (o.id === editingId ? { ...o, ...form } : o)),
-      );
+      await dispatch(updateAdminOrderAsync({ orderId: editingId, data }));
     } else {
-      setOrders((prev) => [...prev, { id: generateOrderId(), ...form }]);
-      setCurrentPage(1);
+      // Create order logic if needed
+      // If creating new... wait, AdminOrderPage doesn't create orders yet, it only updates.
+      // But just in case:
     }
+    
+    dispatch(fetchOrderStatsAsync());
     handleClose();
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Delete this order?"))
-      setOrders((prev) => prev.filter((o) => o.id !== id));
+  const handleDelete = async (id: string) => {
+    if (confirm("Delete this order?")) {
+      await dispatch(deleteOrderAsync(id));
+    }
   };
 
   interface Column<T> {
@@ -917,7 +1049,7 @@ export default function AdminOrderPage() {
       header: "Order ID",
       render: (o) => (
         <span className="font-mono text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-lg whitespace-nowrap">
-          {o.id}
+          {o.orderNumber}
         </span>
       ),
     },
@@ -957,6 +1089,28 @@ export default function AdminOrderPage() {
         </span>
       ),
     },
+    {
+      header: "Order Status",
+      render: (o) => (
+        <InlineSelect
+          value={o.orderStatus}
+          options={ORDER_STATUS_OPTIONS}
+          placeholder="Select"
+          onChange={(v) => updateOrderField(o.id, "orderStatus", v)}
+        />
+      ),
+    },
+    // {
+    //   header: "Payment Status",
+    //   render: (o) => (
+    //     <InlineSelect
+    //       value={o.paymentStatus}
+    //       options={PAYMENT_STATUS_OPTIONS}
+    //       placeholder="Select"
+    //       onChange={(v) => updateOrderField(o.id, "paymentStatus", v)}
+    //     />
+    //   ),
+    // },
     {
       header: "Payment",
       render: (o) => (
@@ -1063,45 +1217,60 @@ export default function AdminOrderPage() {
       </div>
 
       {/* Content */}
-      <div className="py-6">
+      <div className="py-6 space-y-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Total Orders Card */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Total Orders</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalOrders || 0}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center text-xl">
+              📦
+            </div>
+          </div>
+          {/* Completed Payments Card */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Completed Payments</p>
+              <p className="text-3xl font-bold text-green-600 mt-2">₹{(stats?.completedAmount || 0).toLocaleString("en-IN")}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-green-50 text-green-500 flex items-center justify-center text-xl">
+              💸
+            </div>
+          </div>
+          {/* Pending Payments Card */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Pending Payments</p>
+              <p className="text-3xl font-bold text-yellow-600 mt-2">₹{(stats?.pendingAmount || 0).toLocaleString("en-IN")}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-yellow-50 text-yellow-500 flex items-center justify-center text-xl">
+              ⏳
+            </div>
+          </div>
+        </div>
+
         <CommonTable
           columns={columns}
           data={paginated}
           emptyMessage="No orders found."
-          onSearch={(q) => {
+          onSearch={useCallback((q: string) => {
             setSearchQuery(q);
             setCurrentPage(1);
-          }}
+          }, [])}
           searchPlaceholder="Search by vendor, order ID, product..."
-          showingText={`Showing ${paginated.length} of ${filtered.length} orders`}
+          showingText={`Showing ${paginated.length} of ${pagination?.totalRecords || 0} orders`}
           currentPage={currentPage}
           totalPages={totalPages}
           onPrev={() => setCurrentPage((p) => Math.max(1, p - 1))}
           onNext={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
           headerBg="bg-gray-50"
           footerBg="bg-gray-50"
-          gridTemplateColumns="1.2fr 1.2fr 0.8fr 0.6fr 1fr 1fr 1fr 1.2fr"
+          gridTemplateColumns="1.2fr 1.2fr 0.8fr 0.6fr 1fr 1fr 1fr 1fr 1.2fr"
         />
 
-        {/* Grand Total */}
-        {orders.length > 0 && (
-          <div className="mt-4 flex justify-end">
-            <div className="bg-white rounded-xl border border-gray-200 px-6 py-3 flex items-center gap-3 shadow-sm">
-              <span className="text-sm text-gray-500">
-                {orders.length} orders ·{" "}
-                {orders.reduce((s, o) => s + orderTotalQty(o), 0)} items
-              </span>
-              <div className="w-px h-4 bg-gray-200" />
-              <span className="text-sm text-gray-500">Grand Total</span>
-              <span className="text-xl font-bold" style={{ color: "#00A759" }}>
-                ₹
-                {orders
-                  .reduce((s, o) => s + orderTotalPrice(o), 0)
-                  .toLocaleString()}
-              </span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

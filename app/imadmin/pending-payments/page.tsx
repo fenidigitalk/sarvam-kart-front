@@ -540,21 +540,14 @@
 //       <ConfirmModal
 //         open={deleteConfirm.open}
 //         title="Delete Pending Payment?"
-//         message="This will permanently remove this vendor's pending payment record. This action cannot be undone."
-//         confirmLabel="Delete"
-//         confirmClass="bg-red-500 hover:bg-red-600 text-white"
-//         onConfirm={() => deleteConfirm.id && handleDelete(deleteConfirm.id)}
-//         onCancel={() => setDeleteConfirm({ open: false, id: null })}
-//       />
-//     </div>
-//   );
-// }
-
 "use client";
 
 import { useState, useEffect } from "react";
 import React from "react";
 import CommonTable from "@/components/commonTable"; // adjust path as needed
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
+import { fetchPendingPaymentsAsync, fetchOrderStatsAsync } from "@/store/slices/orderSlice";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -580,122 +573,7 @@ interface PendingPaymentRow {
   orders: PendingOrder[];
 }
 
-// ─── Mock Data (3 vendors only) ───────────────────────────────────────────────
 
-const MOCK_DATA: PendingPaymentRow[] = [
-  {
-    id: "PP-001",
-    vendorName: "Sarvam Signature",
-    vendorAvatar: "SS",
-    pendingAmount: 64997,
-    orders: [
-      {
-        orderId: "ORD-20240001",
-        products: [
-          {
-            id: "P001",
-            name: "Elite Velocity Runner",
-            category: "Fashion & Apparel",
-            image:
-              "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=80&h=80&fit=crop",
-            price: 7299,
-            qty: 5,
-          },
-          {
-            id: "P002",
-            name: "Classic Oxford Shirt",
-            category: "Men's Wear",
-            image:
-              "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=80&h=80&fit=crop",
-            price: 3699,
-            qty: 7,
-          },
-        ],
-      },
-      {
-        orderId: "ORD-20240007",
-        products: [
-          {
-            id: "P009",
-            name: "Leather Derby Shoes",
-            category: "Footwear",
-            image:
-              "https://images.unsplash.com/photo-1533867617858-e7b97e060509?w=80&h=80&fit=crop",
-            price: 4299,
-            qty: 3,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "PP-002",
-    vendorName: "Minimalist Co.",
-    vendorAvatar: "MC",
-    pendingAmount: 102498,
-    orders: [
-      {
-        orderId: "ORD-20240002",
-        products: [
-          {
-            id: "P003",
-            name: "Linen Blend Trousers",
-            category: "Bottom Wear",
-            image:
-              "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=80&h=80&fit=crop",
-            price: 4199,
-            qty: 4,
-          },
-          {
-            id: "P004",
-            name: "Merino Wool Sweater",
-            category: "Winter Wear",
-            image:
-              "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=80&h=80&fit=crop",
-            price: 5999,
-            qty: 6,
-          },
-        ],
-      },
-      {
-        orderId: "ORD-20240009",
-        products: [
-          {
-            id: "P005",
-            name: "Slim Fit Chinos",
-            category: "Bottom Wear",
-            image:
-              "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=80&h=80&fit=crop",
-            price: 3299,
-            qty: 8,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "PP-003",
-    vendorName: "Urban Loft",
-    vendorAvatar: "UL",
-    pendingAmount: 21897,
-    orders: [
-      {
-        orderId: "ORD-20240003",
-        products: [
-          {
-            id: "P006",
-            name: "Graphic Tee Pack",
-            category: "Casual Wear",
-            image:
-              "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=80&h=80&fit=crop",
-            price: 1299,
-            qty: 9,
-          },
-        ],
-      },
-    ],
-  },
-];
 
 // ─── Avatar Helper ─────────────────────────────────────────────────────────────
 
@@ -1093,31 +971,37 @@ function ViewDrawer({ open, row, onClose }: ViewDrawerProps) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function PendingPaymentsPage() {
-  const [data, setData] = useState<PendingPaymentRow[]>(MOCK_DATA);
-  const [filtered, setFiltered] = useState<PendingPaymentRow[]>(MOCK_DATA);
+  const dispatch = useDispatch<AppDispatch>();
+  const { pendingPayments, pendingPagination, stats, loading } = useSelector((state: RootState) => state.order);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  useEffect(() => {
+    dispatch(fetchOrderStatsAsync());
+  }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchPendingPaymentsAsync({ page: currentPage, limit: PAGE_SIZE, search: debouncedSearch }));
+  }, [dispatch, currentPage, debouncedSearch]);
 
   const [viewOpen, setViewOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<PendingPaymentRow | null>(
     null,
   );
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 5;
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = filtered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
+  const totalPages = Math.ceil(pendingPagination.totalRecords / PAGE_SIZE);
 
   function handleSearch(val: string) {
-    const q = val.toLowerCase();
-    setFiltered(
-      data.filter(
-        (r) =>
-          r.vendorName.toLowerCase().includes(q) ||
-          r.id.toLowerCase().includes(q),
-      ),
-    );
+    setSearchQuery(val);
     setCurrentPage(1);
   }
 
@@ -1220,7 +1104,7 @@ export default function PendingPaymentsPage() {
         <div>
           <h1 className="text-lg font-bold text-gray-900">Pending Payments</h1>
           <p className="text-sm text-gray-400">
-            {data.length} vendors with outstanding payments
+            {pendingPagination.totalRecords} vendors with outstanding payments
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 border border-red-100">
@@ -1228,10 +1112,7 @@ export default function PendingPaymentsPage() {
             Total Pending
           </span>
           <span className="text-sm font-bold text-red-500">
-            ₹
-            {data
-              .reduce((s, r) => s + r.pendingAmount, 0)
-              .toLocaleString("en-IN")}
+            ₹{stats.pendingAmount?.toLocaleString("en-IN") || 0}
           </span>
         </div>
       </div>
@@ -1239,10 +1120,10 @@ export default function PendingPaymentsPage() {
       {/* Table */}
       <CommonTable<PendingPaymentRow>
         columns={columns}
-        data={paginated}
+        data={pendingPayments}
         onSearch={handleSearch}
-        searchPlaceholder="Search by vendor or payment ID..."
-        showingText={`Showing ${paginated.length} of ${filtered.length} records`}
+        searchPlaceholder="Search by vendor..."
+        showingText={`Showing ${pendingPayments.length} of ${pendingPagination.totalRecords} records`}
         currentPage={currentPage}
         totalPages={totalPages}
         onPrev={() => setCurrentPage((p) => Math.max(1, p - 1))}
