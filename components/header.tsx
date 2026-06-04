@@ -6,8 +6,6 @@ import {
   Heart,
   ShoppingCart,
   User,
-  Download,
-  MapPin,
   ChevronDown,
   X,
   Folder,
@@ -110,7 +108,7 @@ export default function Header() {
             </Link>
 
             {/* Wishlist */}
-            <Link href="/cart" className="no-underline">
+            <Link href="/wishList" className="no-underline">
               <button className="relative p-2 bg-transparent border-none cursor-pointer text-slate-600 rounded-lg hover:bg-slate-50 transition-colors">
                 <Heart
                   className="w-[18px] h-[18px]"
@@ -209,12 +207,25 @@ export default function Header() {
                 )}
               </div>
 
-              {/* All Collections */}
-              <Link href="/all-collections" className="no-underline">
+              <Link href="/contact" className="no-underline">
                 <button className="px-4 py-3 bg-transparent border-none cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-[#00A759] transition-colors">
-                  All Collections
+                  Contact
                 </button>
               </Link>
+
+              <Link href="/about" className="no-underline">
+                <button className="px-4 py-3 bg-transparent border-none cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-[#00A759] transition-colors">
+                  About 
+                </button>
+              </Link>
+
+              <Link href="/category?category=New%20Arrivals" className="no-underline">
+                <button className="px-4 py-3 bg-transparent border-none cursor-pointer text-[13px] font-semibold text-slate-700 hover:text-[#00A759] transition-colors">
+                  New Arrivals
+                </button>
+              </Link>
+
+            
             </nav>
 
             {/* Branch Badge */}

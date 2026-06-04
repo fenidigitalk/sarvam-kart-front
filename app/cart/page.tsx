@@ -10,9 +10,7 @@ import {
   X,
   Heart,
   ChevronRight,
-  Sparkles,
   Check,
-  ArrowLeft,
   ShieldCheck,
 } from "lucide-react";
 import Image from "next/image";
@@ -76,22 +74,7 @@ export default function CartPage() {
               />
             )}
           </button>
-          <div className="w-[1px] h-6 bg-slate-200 self-center" />
-          <button
-            onClick={() => setActiveTab("wishlist")}
-            className={`pb-3 text-lg font-bold cursor-pointer flex items-center gap-1.5 relative transition-colors ${activeTab === "wishlist" ? "text-slate-900" : "text-slate-400 hover:text-slate-900"}`}
-          >
-            <span>Saved Desires</span>
-            <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full font-mono">
-              {wishlist.length}
-            </span>
-            {activeTab === "wishlist" && (
-              <motion.div
-                layoutId="cart-tab-indicator"
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-900"
-              />
-            )}
-          </button>
+         
         </div>
 
         <AnimatePresence mode="wait">
@@ -154,8 +137,8 @@ export default function CartPage() {
                     <p className="text-xs text-slate-500">
                       Discover new curations on our home runway.
                     </p>
-                    <Link href="/">
-                      <button className="mt-2 px-5 py-2.5 bg-slate-950 text-white rounded-xl text-xs font-semibold cursor-pointer hover:bg-[#ffa352] hover:text-slate-950 transition">
+                    <Link href="/category">
+                      <button className="mt-2 px-5 py-2.5 bg-slate-950 text-white rounded-xl text-xs font-semibold cursor-pointer hover:bg-[#00A759] hover:text-slate-950 transition">
                         Explore Collections
                       </button>
                     </Link>
@@ -309,7 +292,7 @@ export default function CartPage() {
           )}
 
           {/* ── WISHLIST TAB ── */}
-          {!orderPlaced && activeTab === "wishlist" && (
+          {/* {!orderPlaced && activeTab === "wishlist" && (
             <motion.div
               key="wishlist-tab"
               initial={{ opacity: 0, y: 10 }}
@@ -397,7 +380,7 @@ export default function CartPage() {
                 </div>
               )}
             </motion.div>
-          )}
+          )} */}
         </AnimatePresence>
       </div>
       <Footer/>

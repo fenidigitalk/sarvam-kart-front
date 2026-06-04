@@ -4,14 +4,10 @@ import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   Heart,
-  Star,
   ShoppingBag,
-  ShieldCheck,
   Plus,
   Minus,
   Check,
-  Truck,
-  Award,
   ChevronRight,
 } from "lucide-react";
 import Image from "next/image";
@@ -22,15 +18,21 @@ import Footer from "@/components/footer";
 import { api } from "@/lib/axios";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
-import { addToCartAsync, updateQuantityAsync, removeFromCartAsync, toggleWishlist } from "@/store/slices/cartSlice";
+import {
+  addToCartAsync,
+  updateQuantityAsync,
+  removeFromCartAsync,
+  toggleWishlist,
+} from "@/store/slices/cartSlice";
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
-  
-  const dispatch = useDispatch<AppDispatch>();
-  const { items: cartItems, wishlist } = useSelector((state: RootState) => state.cart);
-  const { token } = useSelector((state: RootState) => state.auth);
 
+  const dispatch = useDispatch<AppDispatch>();
+  const { items: cartItems, wishlist } = useSelector(
+    (state: RootState) => state.cart,
+  );
+  const { token } = useSelector((state: RootState) => state.auth);
 
   const [product, setProduct] = useState<any>(null);
   const [related, setRelated] = useState<any[]>([]);
@@ -48,11 +50,11 @@ export default function ProductDetailPage() {
       try {
         const res = await api.get(`/product/${id}`);
         const data = res.data.data;
-        
+
         const variant = data.variants?.[0] || {};
         const mainImage = data.images?.[0]?.src || "";
         const thumbnails = data.images?.map((img: any) => img.src) || [];
-        
+
         const adapted = {
           id: data._id,
           _id: data._id,
@@ -60,31 +62,43 @@ export default function ProductDetailPage() {
           variants: data.variants,
           name: data.title,
           price: data.basePrice || variant.price || 0,
-          originalPrice: variant.compareAtPrice > (data.basePrice || variant.price) ? variant.compareAtPrice : null,
+          originalPrice:
+            variant.compareAtPrice > (data.basePrice || variant.price)
+              ? variant.compareAtPrice
+              : null,
           currency: "INR",
-          category: data.categories?.length ? data.categories.map((c: any) => c.title).join(", ") : (data.tags?.[0] || "General"),
+          category: data.categories?.length
+            ? data.categories.map((c: any) => c.title).join(", ")
+            : data.tags?.[0] || "General",
           brand: data.vendor,
           tag: "",
           image: mainImage,
           thumbnails: thumbnails,
           rating: 4.8,
           descriptionHtml: data.description || "",
-          sku: variant.sku || "N/A"
+          sku: variant.sku || "N/A",
         };
         setProduct(adapted);
 
         if (data.categories?.length > 0) {
           try {
             const relRes = await api.get("/product", {
-              params: { categoryId: data.categories[0]._id || data.categories[0], limit: 5 }
+              params: {
+                categoryId: data.categories[0]._id || data.categories[0],
+                limit: 5,
+              },
             });
-            const filtered = relRes.data.data.filter((p: any) => p._id !== data._id && p.shopifyId !== data.shopifyId).slice(0, 4);
+            const filtered = relRes.data.data
+              .filter(
+                (p: any) =>
+                  p._id !== data._id && p.shopifyId !== data.shopifyId,
+              )
+              .slice(0, 4);
             setRelated(filtered);
           } catch (err) {
             console.error("Failed to fetch related", err);
           }
         }
-
       } catch (err) {
         console.error(err);
       } finally {
@@ -94,14 +108,23 @@ export default function ProductDetailPage() {
     fetchProduct();
   }, [id]);
 
-  const isWishlisted = product ? wishlist.some((item) => (item._id || item.shopifyId || item.id) === (product._id || product.shopifyId || product.id)) : false;
+  const isWishlisted = product
+    ? wishlist.some(
+        (item) =>
+          (item._id || item.shopifyId || item.id) ===
+          (product._id || product.shopifyId || product.id),
+      )
+    : false;
 
   // Find if product is in cart
   const cartItem = cartItems.find((item) => {
     if (!product) return false;
-    const itemId = typeof item.productId === 'object' ? item.productId?._id : item.productId;
+    const itemId =
+      typeof item.productId === "object" ? item.productId?._id : item.productId;
     const isIdMatch = itemId === product._id;
-    const isShopifyIdMatch = typeof item.productId === 'object' && item.productId?.shopifyId === product.shopifyId;
+    const isShopifyIdMatch =
+      typeof item.productId === "object" &&
+      item.productId?.shopifyId === product.shopifyId;
     return isIdMatch || isShopifyIdMatch;
   });
 
@@ -111,13 +134,16 @@ export default function ProductDetailPage() {
       alert("Please login to add items to your cart.");
       return;
     }
-    
+
     const payload = {
       productId: product._id,
-      variantId: product.variants?.[0]?.shopifyVariantId || product.variants?.[0]?._id || "default",
-      quantity: quantity
+      variantId:
+        product.variants?.[0]?.shopifyVariantId ||
+        product.variants?.[0]?._id ||
+        "default",
+      quantity: quantity,
     };
-    
+
     await dispatch(addToCartAsync(payload));
     setAddedAnimation(true);
     setTimeout(() => setAddedAnimation(false), 1500);
@@ -129,11 +155,11 @@ export default function ProductDetailPage() {
     if (newQty <= 0) {
       await dispatch(removeFromCartAsync(cartItem._id));
     } else {
-      await dispatch(updateQuantityAsync({ cartItemId: cartItem._id, quantity: newQty }));
+      await dispatch(
+        updateQuantityAsync({ cartItemId: cartItem._id, quantity: newQty }),
+      );
     }
   };
-
-
 
   if (loading) {
     return (
@@ -326,9 +352,7 @@ export default function ProductDetailPage() {
               {/* Stock indicator */}
               <div className="flex items-center gap-1.5 text-xs text-emerald-700">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="font-medium">
-                  In Stock
-                </span>
+                <span className="font-medium">In Stock</span>
               </div>
 
               {/* Quantity + CTA */}
@@ -379,7 +403,9 @@ export default function ProductDetailPage() {
                       <Minus className="w-5 h-5" />
                     </button>
                     <div className="flex flex-col items-center">
-                      <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">In Bag</span>
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                        In Bag
+                      </span>
                       <span className="font-mono font-bold text-xl text-slate-900">
                         {cartItem.quantity}
                       </span>
@@ -415,10 +441,7 @@ export default function ProductDetailPage() {
                 ["Vendor", product.brand],
                 ["Collections", product.category],
               ].map(([k, v]) => (
-                <div
-                  key={k}
-                  className="flex justify-between border-b border-slate-50 py-1.5"
-                >
+                <div className="flex justify-between border-b border-slate-50 py-1.5">
                   <span className="text-slate-400 font-mono">{k}:</span>
                   <span className="text-slate-800 font-medium text-right">
                     {v}
@@ -426,7 +449,6 @@ export default function ProductDetailPage() {
                 </div>
               ))}
             </div>
-
           </div>
         </div>
 
@@ -435,7 +457,7 @@ export default function ProductDetailPage() {
           <h3 className="text-xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-4">
             Product Description
           </h3>
-          <div 
+          <div
             className="text-sm md:text-base text-slate-700 leading-relaxed font-normal prose prose-base prose-slate max-w-none prose-p:mb-4 prose-ul:list-disc prose-ul:ml-6 prose-ul:my-4 prose-li:my-2"
             dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
           />
@@ -473,7 +495,12 @@ export default function ProductDetailPage() {
                       {item.title || item.name}
                     </h4>
                     <span className="text-xs font-mono font-semibold text-slate-500">
-                      ₹{(item.basePrice || item.variants?.[0]?.price || 0).toLocaleString()}
+                      ₹
+                      {(
+                        item.basePrice ||
+                        item.variants?.[0]?.price ||
+                        0
+                      ).toLocaleString()}
                     </span>
                   </div>
                 </Link>

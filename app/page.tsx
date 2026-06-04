@@ -7,14 +7,8 @@ import Footer from "@/components/footer";
 import { api } from "@/lib/axios";
 import AddToCartButton from "@/components/AddToCartButton";
 import {
-  ShoppingCart,
   Heart,
-  Star,
-  ChevronRight,
-  Truck,
-  ShieldCheck,
-  Award,
-  Zap,
+  ChevronRight
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -339,13 +333,14 @@ function ProductCard({ product }: { product: any }) {
               ₹{(product.basePrice || 0).toLocaleString()}
             </div>
 
-            <div className="z-10 mt-1" onClick={(e) => e.preventDefault()}>
+            <div className="z-10 mt-1 bg-[#00A759] hover:bg-[#00A759]/90 transition-all rounded-lg text-white text-xs font-semibold" onClick={(e) => e.preventDefault()}>
               <AddToCartButton 
                 product={product} 
                 hideLabel={true}
                 className="!p-2 h-9 w-20 flex-shrink-0" 
               />
             </div>
+            
           </div>
         </div>
       </div>
