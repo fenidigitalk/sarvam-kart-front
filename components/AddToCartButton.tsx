@@ -107,7 +107,7 @@ export default function AddToCartButton({ product, variantId, className = "", is
       className={`relative z-10 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
         addedAnimation 
           ? "bg-[#00A759] text-white" 
-          : "bg-slate-900 text-white hover:bg-slate-800"
+          : "bg-[#00A759] text-white hover:bg-[#00A759]/90"
       } ${isFullWidth ? "w-full py-3.5" : ""} ${className}`}
     >
       {addedAnimation ? (
