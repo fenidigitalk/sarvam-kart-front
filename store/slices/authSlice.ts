@@ -47,8 +47,12 @@ export const verifyOtp = createAsyncThunk(
       const { data: user, token, isNewUser } = response.data;
       
       if (isAdminLogin) {
-        if (user.role !== 'admin' && user.role !== 'staff') {
+        if (user.role !== 'admin' && user.role !== 'staff' && user.role !== 'superadmin') {
           return rejectWithValue('Unauthorized: Admin or Staff access required');
+        }
+      } else {
+        if (user.role === 'admin' || user.role === 'staff' || user.role === 'superadmin') {
+          return rejectWithValue('Unauthorized: Admins and Staff cannot login to the customer panel');
         }
       }
       

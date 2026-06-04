@@ -24,7 +24,7 @@ api.interceptors.request.use(
       const url = config.url || '';
       
       let token = null;
-      // If the URL explicitly contains 'imadmin' or we are in an admin context
+      // If the URL explicitly contains 'imadmin', we are in an admin context
       if (window.location.pathname.startsWith('/imadmin')) {
         token = localStorage.getItem('admin_token');
       } else {

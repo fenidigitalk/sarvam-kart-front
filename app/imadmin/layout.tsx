@@ -8,7 +8,8 @@ import {
   Package,
   LogOut,
   Menu,
-  X
+  X,
+  UserPlus
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -110,6 +111,17 @@ export default function AdminLayout({
             <span className="font-medium text-sm">Pending Payments</span>
           </Link>
 
+          <Link
+            href="/imadmin/staff"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
+              pathname.includes("/imadmin/staff")
+                ? "bg-[#00A759] text-white"
+                : "text-slate-400 hover:bg-slate-900 hover:text-white"
+            }`}
+          >
+            <UserPlus className="w-5 h-5" />
+            <span className="font-medium text-sm">Add Staff</span>
+          </Link>
         </nav>
 
         <div className="p-4 border-t border-slate-800">
