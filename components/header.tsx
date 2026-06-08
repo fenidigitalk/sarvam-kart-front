@@ -95,19 +95,9 @@ export default function Header() {
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center gap-2 shrink-0 no-underline"
+            className="flex items-center shrink-0 no-underline"
           >
-            <div className="w-10 h-10 rounded-[10px] bg-[#00A759] flex items-center justify-center text-xl ">
-              🛒
-            </div>
-            <div>
-              <div className="text-[18px] font-black text-[#1a1a2e] font-serif tracking-tight">
-                Sarvam <span className="text-[#00A759]">Kart</span>
-              </div>
-              <div className="text-[9px] text-slate-400 font-mono tracking-widest">
-                PREMIUM BOUTIQUE
-              </div>
-            </div>
+            <img src="/logo.png" alt="Sarvam Kart" className="h-14 w-auto object-contain drop-shadow-sm" />
           </Link>
 
           {/* Search Bar */}

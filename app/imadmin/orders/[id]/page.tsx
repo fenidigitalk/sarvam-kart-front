@@ -157,7 +157,7 @@ export default function OrderDetailsPage() {
         })),
         paymentMode,
         paymentStatus,
-        orderStatus: "Completed",
+        orderStatus: "completed",
         deliveryStatus
       };
       

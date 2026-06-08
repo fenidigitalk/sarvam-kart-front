@@ -42,3 +42,24 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
+// Add a response interceptor to handle 401 errors globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      if (typeof window !== 'undefined') {
+        // If we get a 401 in the admin panel, clear token and redirect to admin login
+        if (window.location.pathname.startsWith('/imadmin')) {
+          localStorage.removeItem('admin_token');
+          window.location.href = '/imadmin/login';
+        } else {
+          // Normal user 401
+          localStorage.removeItem('token');
+          window.location.href = '/login'; // Or whatever your user login route is
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { api } from "@/lib/axios";
-import { Plus, X, User, Trash2 } from "lucide-react";
+import { Plus, X, User, Trash2, Edit } from "lucide-react";
 
 interface Staff {
   _id: string;
@@ -19,8 +19,12 @@ export default function StaffPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [originalPhone, setOriginalPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [showOtpInput, setShowOtpInput] = useState(false);
   const [adding, setAdding] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -42,7 +46,35 @@ export default function StaffPage() {
     fetchStaff(page);
   }, [page]);
 
-  const handleAddStaff = async (e: React.FormEvent) => {
+  const openAddModal = () => {
+    setEditingId(null);
+    setFullName("");
+    setPhone("");
+    setOriginalPhone("");
+    setShowOtpInput(false);
+    setOtp("");
+    setMessage({ text: "", type: "" });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (staff: Staff) => {
+    setEditingId(staff._id);
+    setFullName(staff.fullName || "");
+    setPhone(staff.phone);
+    setOriginalPhone(staff.phone);
+    setShowOtpInput(false);
+    setOtp("");
+    setMessage({ text: "", type: "" });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    if (!adding) {
+      setIsModalOpen(false);
+    }
+  };
+
+  const handleSaveStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName || !phone) {
       setMessage({ text: "Please provide both name and phone number.", type: "error" });
@@ -51,27 +83,55 @@ export default function StaffPage() {
     
     setAdding(true);
     setMessage({ text: "", type: "" });
+    
     try {
-      await api.post("/user/add-staff", {
-        fullName,
-        phone,
-        role: "staff"
-      });
-      setMessage({ text: "Staff added successfully!", type: "success" });
-      setFullName("");
-      setPhone("");
+      if (editingId) {
+        // Edit mode
+        if (phone !== originalPhone) {
+          if (!showOtpInput) {
+            // Request OTP
+            await api.post("/user/request-otp", { phone });
+            setShowOtpInput(true);
+            setMessage({ text: "OTP sent to new phone number. Please verify.", type: "success" });
+            setAdding(false);
+            return;
+          } else {
+            // Verify and Update
+            if (!otp || otp.length < 4) {
+              setMessage({ text: "Please enter a valid OTP.", type: "error" });
+              setAdding(false);
+              return;
+            }
+            await api.put(`/user/${editingId}`, { fullName, phone, otp });
+          }
+        } else {
+          // Update without changing phone
+          await api.put(`/user/${editingId}`, { fullName });
+        }
+        setMessage({ text: "Staff updated successfully!", type: "success" });
+      } else {
+        // Add mode
+        await api.post("/user/add-staff", {
+          fullName,
+          phone,
+          role: "staff"
+        });
+        setMessage({ text: "Staff added successfully!", type: "success" });
+      }
+      
       setTimeout(() => {
-        setIsModalOpen(false);
-        setMessage({ text: "", type: "" });
+        closeModal();
         fetchStaff(page);
       }, 1500);
     } catch (error: any) {
       setMessage({
-        text: error.response?.data?.message || "Failed to add staff.",
+        text: error.response?.data?.message || `Failed to ${editingId ? 'update' : 'add'} staff.`,
         type: "error"
       });
     } finally {
-      setAdding(false);
+      if (!showOtpInput || message.type === 'success') {
+        setAdding(false);
+      }
     }
   };
 
@@ -98,7 +158,7 @@ export default function StaffPage() {
           <p className="text-slate-500 mt-1">Manage all your staff members and their access</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={openAddModal}
           className="bg-[#00A759] text-white px-5 py-2.5 rounded-xl font-medium hover:bg-[#008f4c] shadow-sm shadow-[#00A759]/20 transition-all active:scale-[0.98] flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
@@ -150,7 +210,14 @@ export default function StaffPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 capitalize font-medium">{staff.role}</td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right flex justify-end gap-2">
+                      <button
+                        onClick={() => openEditModal(staff)}
+                        className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                        title="Edit Staff"
+                      >
+                        <Edit className="w-5 h-5" />
+                      </button>
                       <button
                         onClick={() => handleDelete(staff._id)}
                         disabled={deletingId === staff._id}
@@ -191,18 +258,18 @@ export default function StaffPage() {
         )}
       </div>
 
-      {/* Add Staff Modal */}
+      {/* Add/Edit Staff Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div 
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
-            onClick={() => !adding && setIsModalOpen(false)}
+            onClick={closeModal}
           ></div>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative z-10 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-6 border-b border-slate-100">
-              <h2 className="text-xl font-bold text-slate-800">Add New Staff</h2>
+              <h2 className="text-xl font-bold text-slate-800">{editingId ? "Edit Staff" : "Add New Staff"}</h2>
               <button
-                onClick={() => !adding && setIsModalOpen(false)}
+                onClick={closeModal}
                 className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"
                 disabled={adding}
               >
@@ -210,7 +277,7 @@ export default function StaffPage() {
               </button>
             </div>
             
-            <form onSubmit={handleAddStaff} className="p-6 space-y-5">
+            <form onSubmit={handleSaveStaff} className="p-6 space-y-5">
               {message.text && (
                 <div className={`p-4 rounded-xl text-sm font-medium flex items-center gap-2 ${message.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
                   {message.text}
@@ -225,7 +292,8 @@ export default function StaffPage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#00A759]/20 focus:border-[#00A759] transition-all"
+                  disabled={showOtpInput}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#00A759]/20 focus:border-[#00A759] transition-all disabled:opacity-50"
                   placeholder="e.g. Rahul Sharma"
                 />
               </div>
@@ -238,15 +306,32 @@ export default function StaffPage() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#00A759]/20 focus:border-[#00A759] transition-all"
+                  disabled={showOtpInput}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#00A759]/20 focus:border-[#00A759] transition-all disabled:opacity-50"
                   placeholder="e.g. 9876543210"
                 />
               </div>
 
+              {showOtpInput && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Enter OTP
+                  </label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#00A759]/20 focus:border-[#00A759] transition-all"
+                    placeholder="Enter 6-digit OTP"
+                    maxLength={6}
+                  />
+                </div>
+              )}
+
               <div className="pt-4 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={closeModal}
                   disabled={adding}
                   className="flex-1 py-3 px-4 rounded-xl font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
                 >
@@ -260,9 +345,9 @@ export default function StaffPage() {
                   {adding ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Saving...
+                      {showOtpInput ? "Verifying..." : "Saving..."}
                     </>
-                  ) : "Save Staff"}
+                  ) : showOtpInput ? "Verify & Save" : editingId ? "Update Staff" : "Save Staff"}
                 </button>
               </div>
             </form>

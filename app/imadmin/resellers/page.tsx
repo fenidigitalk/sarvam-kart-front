@@ -142,16 +142,23 @@ export default function ResellersPage() {
   const [resellers, setResellers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [limit, setLimit] = useState(10);
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingReseller, setEditingReseller] = useState<any>(null);
 
   const fetchResellers = async () => {
+    setLoading(true);
     try {
-      const res = await api.get(`/reseller?search=${search}`);
+      const res = await api.get(`/reseller?search=${search}&page=${page}&limit=${limit}`);
       const data = res.data;
       if (data.status === "Success") {
         setResellers(data.data);
+        if (data.pagination) {
+          setTotalPages(data.pagination.totalPages || 1);
+        }
       }
     } catch (error) {
       console.error("Error fetching resellers", error);
@@ -161,8 +168,12 @@ export default function ResellersPage() {
   };
 
   useEffect(() => {
-    fetchResellers();
+    setPage(1);
   }, [search]);
+
+  useEffect(() => {
+    fetchResellers();
+  }, [page, limit, search]);
 
   const openEditModal = (reseller: any) => {
     setEditingReseller(reseller);
@@ -295,6 +306,45 @@ export default function ResellersPage() {
             </tbody>
           </table>
         </div>
+        {/* Pagination Controls */}
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-500">Rows per page:</span>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="text-sm border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-[#00A759]/20 focus:border-[#00A759]"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1 text-sm border border-slate-200 rounded-lg disabled:opacity-50 hover:bg-slate-100 transition-colors"
+              >
+                Previous
+              </button>
+              <span className="text-sm font-medium text-slate-700">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1 text-sm border border-slate-200 rounded-lg disabled:opacity-50 hover:bg-slate-100 transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

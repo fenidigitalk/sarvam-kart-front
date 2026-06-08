@@ -8,7 +8,7 @@ interface PaginationProps {
 }
 
 export default function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
-  if (totalPages <= 1) return null;
+  if (totalPages === 0) return null;
 
   return (
     <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50/50">

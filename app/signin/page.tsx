@@ -158,8 +158,8 @@ export default function LoginPage() {
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
-            <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto shadow-inner">
-              <User className="w-6 h-6 text-[#00A759]" />
+            <div className="flex items-center justify-center mx-auto mb-2">
+              <img src="/logo.png" alt="Sarvam Kart Logo" className="h-24 w-auto object-contain drop-shadow-sm" />
             </div>
             <h2 className="text-xl font-bold tracking-tight text-slate-900">
               {step === "phone" ? "Welcome Back" : step === "otp" ? "Verify OTP" : "Complete Profile"}

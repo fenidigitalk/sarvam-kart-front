@@ -13,6 +13,8 @@ import {
   CreditCard
 } from "lucide-react";
 
+import { api } from "@/lib/axios";
+
 export default function AdminLayout({
   children,
 }: {
@@ -20,16 +22,13 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
-    // If we are on the login page, don't check for token in the layout wrap
-    // Actually, it's better if /admin/login doesn't use this layout, but Next.js app router 
-    // will wrap /admin/login with /admin/layout.tsx.
-    // To fix this, we can either check pathname or structure it differently.
     if (pathname === "/imadmin/login") {
-      setIsAuthenticated(true); // Let it render without sidebar
+      setIsAuthenticated(true);
       return;
     }
 
@@ -37,11 +36,23 @@ export default function AdminLayout({
     if (!token) {
       router.push("/imadmin/login");
     } else {
-      if (pathname === "/imadmin" || pathname === "/imadmin/") {
-        router.push("/imadmin/orders");
-      } else {
-        setIsAuthenticated(true);
-      }
+      const checkUser = async () => {
+        try {
+          const res = await api.get('/user/me');
+          const role = res.data.data.role;
+          setUserRole(role);
+          
+          if (pathname.includes("/imadmin/staff") && role !== 'admin' && role !== 'superadmin') {
+            router.push("/imadmin/orders");
+          } else {
+            setIsAuthenticated(true);
+          }
+        } catch (error) {
+          localStorage.removeItem("admin_token");
+          router.push("/imadmin/login");
+        }
+      };
+      checkUser();
     }
   }, [pathname, router]);
 
@@ -101,17 +112,19 @@ export default function AdminLayout({
           </Link>
 
 
-          <Link
-            href="/imadmin/staff"
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
-              pathname.includes("/imadmin/staff")
-                ? "bg-[#00A759] text-white"
-                : "text-slate-400 hover:bg-slate-900 hover:text-white"
-            }`}
-          >
-            <UserPlus className="w-5 h-5" />
-            <span className="font-medium text-sm">Add Staff</span>
-          </Link>
+          {(userRole === 'admin' || userRole === 'superadmin') && (
+            <Link
+              href="/imadmin/staff"
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
+                pathname.includes("/imadmin/staff")
+                  ? "bg-[#00A759] text-white"
+                  : "text-slate-400 hover:bg-slate-900 hover:text-white"
+              }`}
+            >
+              <UserPlus className="w-5 h-5" />
+              <span className="font-medium text-sm">Add Staff</span>
+            </Link>
+          )}
 
           <Link
             href="/imadmin/resellers"

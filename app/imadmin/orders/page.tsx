@@ -1217,14 +1217,14 @@ export default function AdminOrderPage() {
             </p>
           </div>
         </div>
-        <button
+        {/* <button
           onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
           style={{ backgroundColor: "#00A759" }}
         >
           <span className="text-base leading-none font-bold">+</span>
           New Order
-        </button>
+        </button> */}
       </div>
 
       {/* Content */}

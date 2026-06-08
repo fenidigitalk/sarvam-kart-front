@@ -15,6 +15,37 @@ import { toast } from "sonner";
 import { api } from "@/lib/axios";
 import Pagination from "@/components/Pagination";
 
+const getDateRange = (filter: string) => {
+  if (!filter || filter === "all") return { startDate: "", endDate: "" };
+  
+  const end = new Date();
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  
+  switch (filter) {
+    case "today":
+      break;
+    case "last7days":
+      start.setDate(end.getDate() - 7);
+      break;
+    case "last30days":
+      start.setDate(end.getDate() - 30);
+      break;
+    case "last365days":
+      start.setDate(end.getDate() - 365);
+      break;
+    case "thisweek":
+      const day = start.getDay();
+      const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+      start.setDate(diff);
+      break;
+    case "thismonth":
+      start.setDate(1);
+      break;
+  }
+  return { startDate: start.toISOString(), endDate: end.toISOString() };
+};
+
 // --- Tab Components ---
 
 const LedgerTab = ({ user }: { user: any }) => {
@@ -22,14 +53,19 @@ const LedgerTab = ({ user }: { user: any }) => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [dateFilter, setDateFilter] = useState("all");
+  const [finalBalance, setFinalBalance] = useState<number>(0);
   
-  const fetchLedger = useCallback(async (page: number) => {
+  const fetchLedger = useCallback(async (page: number, filter: string) => {
     setLoading(true);
     try {
-      const res = await api.get(`/reseller/my-ledger?page=${page}&limit=50`);
+      const { startDate, endDate } = getDateRange(filter);
+      const url = `/reseller/my-ledger?page=${page}&limit=50${startDate ? `&startDate=${startDate}&endDate=${endDate}` : ''}`;
+      const res = await api.get(url);
       if (res.data.status === "Success") {
         setLedger(res.data.data);
         setTotalPages(res.data.pagination.totalPages);
+        setFinalBalance(res.data.finalBalance || 0);
       }
     } catch (err) {
       toast.error("Failed to load ledger");
@@ -39,15 +75,24 @@ const LedgerTab = ({ user }: { user: any }) => {
   }, []);
 
   useEffect(() => {
-    fetchLedger(currentPage);
-  }, [currentPage, fetchLedger]);
+    fetchLedger(currentPage, dateFilter);
+  }, [currentPage, dateFilter, fetchLedger]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dateFilter]);
 
   const downloadFile = async (type: "pdf" | "excel") => {
     try {
-      const res = await api.get(`/reseller/${user._id}/ledger/${type}`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const { startDate, endDate } = getDateRange(dateFilter);
+      let endpointUrl = `/reseller/${user._id}/ledger/${type}`;
+      if (startDate) endpointUrl += `?startDate=${startDate}&endDate=${endDate}`;
+
+      const res = await api.get(endpointUrl, { responseType: 'blob' });
+      const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
-      link.href = url;
+      link.href = blobUrl;
       link.setAttribute('download', `ledger-${user._id}.${type === "pdf" ? "pdf" : "xlsx"}`);
       document.body.appendChild(link);
       link.click();
@@ -72,13 +117,28 @@ const LedgerTab = ({ user }: { user: any }) => {
           <h3 className="text-xl font-bold text-slate-900">Account Ledger</h3>
           <p className="text-xs text-slate-500 mt-1">Detailed statement of your account activities.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
+          <select 
+            value={dateFilter} 
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+          >
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="thisweek">This Week</option>
+            <option value="thismonth">This Month</option>
+            <option value="last7days">Last 7 Days</option>
+            <option value="last30days">Last 30 Days</option>
+            <option value="last365days">Last 365 Days</option>
+          </select>
+          <div className="flex gap-2">
           <button onClick={() => downloadFile("pdf")} className="flex items-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer border border-red-100">
             <Download className="w-4 h-4" /> PDF
           </button>
           <button onClick={() => downloadFile("excel")} className="flex items-center gap-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer border border-emerald-100">
             <Download className="w-4 h-4" /> Excel
           </button>
+        </div>
         </div>
       </div>
 
@@ -110,7 +170,7 @@ const LedgerTab = ({ user }: { user: any }) => {
                   </td>
                   <td className="py-3 px-4">
                     <span className="font-medium text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md text-xs">
-                      {item.type}
+                      {item.type === 'opening_balance' ? 'Opening Balance' : item.type === 'sales_invoice' ? 'Sales Invoice' : item.type === 'payment_in' ? 'Payment In' : item.type}
                     </span>
                     {item.notes && <p className="text-[10px] text-slate-400 mt-1">{item.notes}</p>}
                   </td>
@@ -121,12 +181,28 @@ const LedgerTab = ({ user }: { user: any }) => {
                     {item.credit > 0 ? `₹${item.credit.toLocaleString("en-IN")}` : "-"}
                   </td>
                   <td className="py-3 px-4 text-right font-bold text-slate-900 bg-slate-50/50">
-                    ₹{(item.balance || 0).toLocaleString("en-IN")}
+                    ₹{Math.abs(item.balance || 0).toLocaleString("en-IN")}
+                    <span className="text-[10px] font-normal text-slate-500 ml-1">
+                      {(item.balance || 0) > 0 ? 'Dr' : ((item.balance || 0) < 0 ? 'Cr' : '')}
+                    </span>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {!loading && (
+            <div className="flex justify-end p-4 border-t border-slate-100 bg-slate-50">
+              <div className="text-right">
+                <span className="text-sm font-semibold text-slate-500 uppercase mr-4">Closing Balance:</span>
+                <span className={`text-lg font-bold ${finalBalance > 0 ? 'text-red-600' : 'text-[#00A759]'}`}>
+                  ₹{Math.abs(finalBalance).toLocaleString("en-IN")}
+                  <span className="text-sm font-medium ml-1">
+                    {finalBalance > 0 ? 'Dr' : (finalBalance < 0 ? 'Cr' : '')}
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
           <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>
       )}
@@ -139,11 +215,14 @@ const TransactionsHistoryTab = ({ user }: { user: any }) => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [dateFilter, setDateFilter] = useState("all");
 
-  const fetchTransactions = useCallback(async (page: number) => {
+  const fetchTransactions = useCallback(async (page: number, filter: string) => {
     setLoading(true);
     try {
-      const res = await api.get(`/reseller/my-transactions?page=${page}&limit=15`);
+      const { startDate, endDate } = getDateRange(filter);
+      const url = `/reseller/my-transactions?page=${page}&limit=15${startDate ? `&startDate=${startDate}&endDate=${endDate}` : ''}`;
+      const res = await api.get(url);
       if (res.data.status === "Success") {
         setTransactions(res.data.data);
         setTotalPages(res.data.pagination.totalPages);
@@ -156,8 +235,13 @@ const TransactionsHistoryTab = ({ user }: { user: any }) => {
   }, []);
 
   useEffect(() => {
-    fetchTransactions(currentPage);
-  }, [currentPage, fetchTransactions]);
+    fetchTransactions(currentPage, dateFilter);
+  }, [currentPage, dateFilter, fetchTransactions]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dateFilter]);
 
   return (
     <motion.div
@@ -169,9 +253,24 @@ const TransactionsHistoryTab = ({ user }: { user: any }) => {
           <div className="w-8 h-8 border-4 border-slate-200 border-t-[#00A759] rounded-full animate-spin"></div>
         </div>
       )}
-      <div className="mb-6">
-        <h3 className="text-xl font-bold text-slate-900">Transaction History</h3>
-        <p className="text-xs text-slate-500 mt-1">Your recent payments and invoices.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900">Transaction History</h3>
+          <p className="text-xs text-slate-500 mt-1">Your recent payments and invoices.</p>
+        </div>
+        <select 
+          value={dateFilter} 
+          onChange={(e) => setDateFilter(e.target.value)}
+          className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+        >
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="thisweek">This Week</option>
+          <option value="thismonth">This Month</option>
+          <option value="last7days">Last 7 Days</option>
+          <option value="last30days">Last 30 Days</option>
+          <option value="last365days">Last 365 Days</option>
+        </select>
       </div>
 
       {transactions.length === 0 && !loading ? (
@@ -506,9 +605,9 @@ export default function ProfilePage() {
           <button onClick={() => setActiveTab("ledger")} className={`flex items-center justify-center gap-2 py-3 px-6 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${activeTab === "ledger" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
             <FileText className="w-4 h-4" /> Ledger
           </button>
-          <button onClick={() => setActiveTab("report")} className={`flex items-center justify-center gap-2 py-3 px-6 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${activeTab === "report" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
+          {/* <button onClick={() => setActiveTab("report")} className={`flex items-center justify-center gap-2 py-3 px-6 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${activeTab === "report" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
             <BarChart3 className="w-4 h-4" /> Report
-          </button>
+          </button> */}
         </div>
 
         <AnimatePresence mode="wait">

@@ -7,6 +7,37 @@ import { CreditCard, User, BookOpen, BarChart3, ArrowLeft, Download, FileText, C
 import { toast } from "sonner";
 import Pagination from "@/components/Pagination";
 
+const getDateRange = (filter: string) => {
+  if (!filter || filter === "all") return { startDate: "", endDate: "" };
+  
+  const end = new Date();
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  
+  switch (filter) {
+    case "today":
+      break;
+    case "last7days":
+      start.setDate(end.getDate() - 7);
+      break;
+    case "last30days":
+      start.setDate(end.getDate() - 30);
+      break;
+    case "last365days":
+      start.setDate(end.getDate() - 365);
+      break;
+    case "thisweek":
+      const day = start.getDay();
+      const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+      start.setDate(diff);
+      break;
+    case "thismonth":
+      start.setDate(1);
+      break;
+  }
+  return { startDate: start.toISOString(), endDate: end.toISOString() };
+};
+
 // --- Tab Components ---
 
 const LedgerTab = ({ resellerId, onBalanceUpdate }: { resellerId: string, onBalanceUpdate?: (balance: number) => void }) => {
@@ -14,14 +45,19 @@ const LedgerTab = ({ resellerId, onBalanceUpdate }: { resellerId: string, onBala
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [dateFilter, setDateFilter] = useState("all");
+  const [finalBalance, setFinalBalance] = useState<number>(0);
   
-  const fetchLedger = useCallback(async (page: number) => {
+  const fetchLedger = useCallback(async (page: number, filter: string) => {
     setLoading(true);
     try {
-      const res = await api.get(`/reseller/${resellerId}/ledger?page=${page}&limit=50`);
+      const { startDate, endDate } = getDateRange(filter);
+      const url = `/reseller/${resellerId}/ledger?page=${page}&limit=50${startDate ? `&startDate=${startDate}&endDate=${endDate}` : ''}`;
+      const res = await api.get(url);
       if (res.data.status === "Success") {
         setLedger(res.data.data);
         setTotalPages(res.data.pagination.totalPages);
+        setFinalBalance(res.data.finalBalance || 0);
         
         // Update total balance if we are on the last page or if it's the first fetch
         if (res.data.data.length > 0) {
@@ -39,15 +75,24 @@ const LedgerTab = ({ resellerId, onBalanceUpdate }: { resellerId: string, onBala
   }, [resellerId, onBalanceUpdate]);
 
   useEffect(() => {
-    fetchLedger(currentPage);
-  }, [currentPage, fetchLedger]);
+    fetchLedger(currentPage, dateFilter);
+  }, [currentPage, dateFilter, fetchLedger]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dateFilter]);
 
   const downloadFile = async (type: "pdf" | "excel") => {
     try {
-      const res = await api.get(`/reseller/${resellerId}/ledger/${type}`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const { startDate, endDate } = getDateRange(dateFilter);
+      let endpointUrl = `/reseller/${resellerId}/ledger/${type}`;
+      if (startDate) endpointUrl += `?startDate=${startDate}&endDate=${endDate}`;
+      
+      const res = await api.get(endpointUrl, { responseType: 'blob' });
+      const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
-      link.href = url;
+      link.href = blobUrl;
       link.setAttribute('download', `ledger-${resellerId}.${type === "pdf" ? "pdf" : "xlsx"}`);
       document.body.appendChild(link);
       link.click();
@@ -62,13 +107,29 @@ const LedgerTab = ({ resellerId, onBalanceUpdate }: { resellerId: string, onBala
 
   return (
     <div className="space-y-6 animation-fade-in">
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <select 
+          value={dateFilter} 
+          onChange={(e) => setDateFilter(e.target.value)}
+          className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+        >
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="thisweek">This Week</option>
+          <option value="thismonth">This Month</option>
+          <option value="last7days">Last 7 Days</option>
+          <option value="last30days">Last 30 Days</option>
+          <option value="last365days">Last 365 Days</option>
+        </select>
+
+        <div className="flex gap-3">
         <button onClick={() => downloadFile("excel")} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition shadow-sm font-medium text-sm">
           <Download className="w-4 h-4" /> Download Excel
         </button>
         <button onClick={() => downloadFile("pdf")} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition shadow-sm font-medium text-sm">
           <FileText className="w-4 h-4" /> Print PDF
         </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative min-h-[300px]">
@@ -104,12 +165,30 @@ const LedgerTab = ({ resellerId, onBalanceUpdate }: { resellerId: string, onBala
                     <td className="px-6 py-4 text-sm text-slate-500">{item.notes || '-'}</td>
                     <td className="px-6 py-4 text-sm font-medium text-red-500">{item.debit > 0 ? `₹${item.debit}` : '-'}</td>
                     <td className="px-6 py-4 text-sm font-medium text-green-500">{item.credit > 0 ? `₹${item.credit}` : '-'}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-slate-800 bg-slate-50/30">₹{item.balance}</td>
+                    <td className="px-6 py-4 text-sm font-bold text-slate-800 bg-slate-50/30">
+                      ₹{Math.abs(item.balance || 0).toLocaleString("en-IN")}
+                      <span className="text-xs font-normal text-slate-500 ml-1">
+                        {(item.balance || 0) > 0 ? 'Dr' : ((item.balance || 0) < 0 ? 'Cr' : '')}
+                      </span>
+                    </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+          {!loading && (
+            <div className="flex justify-end p-6 border-t border-slate-100 bg-slate-50">
+              <div className="text-right">
+                <span className="text-sm font-semibold text-slate-500 uppercase mr-4">Closing Balance:</span>
+                <span className={`text-xl font-bold ${finalBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  ₹{Math.abs(finalBalance).toLocaleString("en-IN")}
+                  <span className="text-sm font-medium ml-1">
+                    {finalBalance > 0 ? 'Dr' : (finalBalance < 0 ? 'Cr' : '')}
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
         </div>
         <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
@@ -122,11 +201,14 @@ const TransactionsHistoryTab = ({ resellerId }: { resellerId: string }) => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [dateFilter, setDateFilter] = useState("all");
 
-  const fetchTransactions = useCallback(async (page: number) => {
+  const fetchTransactions = useCallback(async (page: number, filter: string) => {
     setLoading(true);
     try {
-      const res = await api.get(`/reseller/${resellerId}/transactions?page=${page}&limit=15`);
+      const { startDate, endDate } = getDateRange(filter);
+      const url = `/reseller/${resellerId}/transactions?page=${page}&limit=15${startDate ? `&startDate=${startDate}&endDate=${endDate}` : ''}`;
+      const res = await api.get(url);
       if (res.data.status === "Success") {
         setTransactions(res.data.data);
         setTotalPages(res.data.pagination.totalPages);
@@ -139,8 +221,13 @@ const TransactionsHistoryTab = ({ resellerId }: { resellerId: string }) => {
   }, [resellerId]);
 
   useEffect(() => {
-    fetchTransactions(currentPage);
-  }, [currentPage, fetchTransactions]);
+    fetchTransactions(currentPage, dateFilter);
+  }, [currentPage, dateFilter, fetchTransactions]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dateFilter]);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative min-h-[300px] animation-fade-in">
@@ -149,8 +236,21 @@ const TransactionsHistoryTab = ({ resellerId }: { resellerId: string }) => {
           <div className="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-600 rounded-full animate-spin"></div>
         </div>
       )}
-      <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
+      <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h3 className="font-bold text-slate-800 text-lg">Transaction History</h3>
+        <select 
+          value={dateFilter} 
+          onChange={(e) => setDateFilter(e.target.value)}
+          className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+        >
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="thisweek">This Week</option>
+          <option value="thismonth">This Month</option>
+          <option value="last7days">Last 7 Days</option>
+          <option value="last30days">Last 30 Days</option>
+          <option value="last365days">Last 365 Days</option>
+        </select>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
@@ -518,7 +618,7 @@ export default function ResellerDashboard() {
     { id: "ledger", label: "Ledger (Statement)", icon: BookOpen },
     { id: "transactions", label: "Transactions History", icon: History },
     { id: "report", label: "Item Wise Report", icon: BarChart3 },
-    { id: "profile", label: "Profile", icon: User },
+    // { id: "profile", label: "Profile", icon: User },
   ];
 
   return (
@@ -576,12 +676,12 @@ export default function ResellerDashboard() {
         {activeTab === "ledger" && <LedgerTab resellerId={resellerId} onBalanceUpdate={setBalance} />}
         {activeTab === "transactions" && <TransactionsHistoryTab resellerId={resellerId} />}
         {activeTab === "report" && <ReportTab resellerId={resellerId} />}
-        {activeTab === "profile" && (
+        {/* {activeTab === "profile" && (
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 text-center text-slate-500">
             <User className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <p>Profile details management coming soon.</p>
           </div>
-        )}
+        )} */}
       </div>
       
       <style jsx global>{`

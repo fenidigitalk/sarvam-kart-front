@@ -614,7 +614,8 @@ function DeliveryBadge({ status }: { status: string }) {
 // ─── QR Modal ─────────────────────────────────────────────────────────────────
 
 function QRModal({ order, onClose }: { order: any; onClose: () => void }) {
-  const orderUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/orders/${order._id}`;
+  const frontUrl = process.env.NEXT_PUBLIC_FRONT_URL || (typeof window !== "undefined" ? window.location.origin : "");
+  const orderUrl = `${frontUrl}/imadmin/orders/${order._id}`;
   const qrOrderUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(orderUrl)}&bgcolor=FFFFFF&color=000000&margin=20`;
 
   return (
