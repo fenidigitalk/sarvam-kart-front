@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import { api } from "@/lib/axios";
@@ -22,11 +22,14 @@ import {
   addToCartAsync,
   updateQuantityAsync,
   removeFromCartAsync,
-  toggleWishlist,
+  toggleWishlistAsync,
+  fetchWishlistAsync
 } from "@/store/slices/cartSlice";
+import { toast } from "sonner";
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
 
   const dispatch = useDispatch<AppDispatch>();
   const { items: cartItems, wishlist } = useSelector(
@@ -130,11 +133,7 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = async () => {
     if (!product) return;
-    if (!token) {
-      alert("Please login to add items to your cart.");
-      return;
-    }
-
+    
     const payload = {
       productId: product._id,
       variantId:
@@ -143,6 +142,12 @@ export default function ProductDetailPage() {
         "default",
       quantity: quantity,
     };
+
+    if (!token) {
+      sessionStorage.setItem("pendingAction", JSON.stringify({ type: "cart", payload, returnUrl: window.location.pathname }));
+      router.push("/signin");
+      return;
+    }
 
     await dispatch(addToCartAsync(payload));
     setAddedAnimation(true);
@@ -420,7 +425,21 @@ export default function ProductDetailPage() {
                 )}
 
                 <button
-                  onClick={() => dispatch(toggleWishlist(product))}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!token) {
+                      sessionStorage.setItem("pendingAction", JSON.stringify({ type: "wishlist", payload: product._id || product.shopifyId || product.id, returnUrl: window.location.pathname }));
+                      router.push("/signin");
+                      return;
+                    }
+                    await dispatch(toggleWishlistAsync(product._id || product.shopifyId || product.id));
+                    if (!isWishlisted) {
+                      toast.success("Added to Wishlist");
+                      dispatch(fetchWishlistAsync());
+                    }
+                    else toast.info("Removed from Wishlist");
+                  }}
                   className={`p-3.5 border rounded-xl transition ${isWishlisted ? "border-red-500 bg-red-50 text-red-500" : "border-slate-200 text-slate-400 hover:bg-slate-50 hover:border-slate-300"}`}
                   title={
                     isWishlisted ? "Remove from Wishlist" : "Save to Wishlist"
@@ -441,7 +460,7 @@ export default function ProductDetailPage() {
                 ["Vendor", product.brand],
                 ["Collections", product.category],
               ].map(([k, v]) => (
-                <div className="flex justify-between border-b border-slate-50 py-1.5">
+                <div key={k} className="flex justify-between border-b border-slate-50 py-1.5">
                   <span className="text-slate-400 font-mono">{k}:</span>
                   <span className="text-slate-800 font-medium text-right">
                     {v}

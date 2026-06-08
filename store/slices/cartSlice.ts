@@ -85,30 +85,64 @@ export const removeFromCartAsync = createAsyncThunk(
   }
 );
 
+export const fetchWishlistAsync = createAsyncThunk(
+  'cart/fetchWishlist',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/wishlist');
+      return response.data.data; // array of populated products
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch wishlist');
+    }
+  }
+);
+
+export const toggleWishlistAsync = createAsyncThunk(
+  'cart/toggleWishlistAsync',
+  async (productId: string, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/wishlist/toggle', { productId });
+      return { productId, action: response.data.data.action }; 
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to toggle wishlist');
+    }
+  }
+);
+
 const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
     clearCartState: (state) => {
       state.items = [];
+      state.wishlist = [];
       state.totalQuantity = 0;
       state.totalPrice = 0;
     },
     toggleWishlist: (state, action) => {
-      const product = action.payload;
-      // Identify product by shopifyId or _id
-      const pId = product.shopifyId || product.id || product._id;
-      const index = state.wishlist.findIndex(item => (item.shopifyId || item.id || item._id) === pId);
-      if (index !== -1) {
-        state.wishlist.splice(index, 1);
-      } else {
-        state.wishlist.push(product);
-      }
+      // Keep synchronous toggle if needed for optimistic updates, or let the thunk handle it.
+      // We will do optimistic updates in toggleWishlistAsync.fulfilled.
     }
   },
   extraReducers: (builder) => {
     builder
-      // Fetch
+      // Fetch Wishlist
+      .addCase(fetchWishlistAsync.fulfilled, (state, action) => {
+        state.wishlist = action.payload || [];
+      })
+      
+      // Toggle Wishlist
+      .addCase(toggleWishlistAsync.fulfilled, (state, action) => {
+        const { productId, action: toggleAction } = action.payload;
+        if (toggleAction === "removed") {
+          state.wishlist = state.wishlist.filter(item => (item.shopifyId || item.id || item._id) !== productId);
+        } else {
+          // Note: we can't fully populate the product here optimistically without the full object.
+          // The page will probably need to re-fetch or we pass the product object to toggleWishlistAsync.
+          // For now, let's keep it simple. Ideally, we should pass the full product so we can push it.
+        }
+      })
+      // Fetch Cart
       .addCase(fetchCartAsync.pending, (state) => {
         state.loading = true;
         state.error = null;

@@ -65,9 +65,9 @@ export const verifyOtp = createAsyncThunk(
 
 export const addReseller = createAsyncThunk(
   'auth/addReseller',
-  async ({ name, number }: { name: string, number: string }, { rejectWithValue }) => {
+  async ({ name, number, address }: { name: string, number: string, address: string }, { rejectWithValue }) => {
     try {
-      const response = await api.post('/reseller', { name, number });
+      const response = await api.post('/reseller', { name, number, address });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to add reseller');

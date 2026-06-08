@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import Link from "next/link";
 import CommonTable from "@/components/commonTable";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
@@ -798,17 +799,16 @@ function OrderFormModal({
             )}
           </div>
 
-          {/* Payment Method & Status */}
+          {/* Payment Status (Automated) */}
           <div className="grid gap-6">
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                Payment Method
+                Payment Status
               </label>
-              <PillToggle
-                options={PAYMENT_OPTIONS}
-                value={form.paymentMethod}
-                onChange={(v) => setForm((f) => ({ ...f, paymentMethod: v }))}
-              />
+              <div className="text-sm font-semibold text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg inline-block">
+                {form.paymentStatus ? form.paymentStatus.charAt(0).toUpperCase() + form.paymentStatus.slice(1) : "Pending"}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Status updates automatically via the Order Details page.</p>
             </div>
             {/* <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -1091,14 +1091,19 @@ export default function AdminOrderPage() {
     },
     {
       header: "Order Status",
-      render: (o) => (
-        <InlineSelect
-          value={o.orderStatus}
-          options={ORDER_STATUS_OPTIONS}
-          placeholder="Select"
-          onChange={(v) => updateOrderField(o.id, "orderStatus", v)}
-        />
-      ),
+      render: (o) => {
+        const isCompleted = o.orderStatus?.toLowerCase() === "completed";
+        return isCompleted ? (
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">COMPLETED</span>
+        ) : (
+          <InlineSelect
+            value={o.orderStatus}
+            options={ORDER_STATUS_OPTIONS}
+            placeholder="Select"
+            onChange={(v) => updateOrderField(o.id, "orderStatus", v)}
+          />
+        );
+      },
     },
     // {
     //   header: "Payment Status",
@@ -1112,68 +1117,74 @@ export default function AdminOrderPage() {
     //   ),
     // },
     {
-      header: "Payment",
-      render: (o) => (
-        <InlineSelect
-          value={o.paymentMethod}
-          options={PAYMENT_OPTIONS}
-          placeholder="Select"
-          onChange={(v) => updateOrderField(o.id, "paymentMethod", v)}
-        />
-      ),
+      header: "Payment Status",
+      render: (o) => {
+        const rawStatus = o.paymentStatus || "pending";
+        const capStatus = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
+        const c = PILL_FULL[capStatus] || PILL_FULL["Pending"];
+        return (
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${c.activeBg} ${c.activeText} ${c.activeBorder}`}>
+            {capStatus}
+          </span>
+        );
+      },
     },
     {
       header: "Delivery",
-      render: (o) => (
-        <InlineSelect
-          value={o.deliveryMethod}
-          options={DELIVERY_OPTIONS}
-          placeholder="Select"
-          onChange={(v) => updateOrderField(o.id, "deliveryMethod", v)}
-        />
-      ),
+      render: (o) => {
+        const isCompleted = o.orderStatus?.toLowerCase() === "completed";
+        return isCompleted ? (
+          <span className="text-sm font-medium text-gray-600">{o.deliveryMethod || "Select"}</span>
+        ) : (
+          <InlineSelect
+            value={o.deliveryMethod}
+            options={DELIVERY_OPTIONS}
+            placeholder="Select"
+            onChange={(v) => updateOrderField(o.id, "deliveryMethod", v)}
+          />
+        );
+      },
     },
     {
       header: "Actions",
       headerClassName: "text-center",
-      render: (o) => (
-        <div className="flex items-center justify-center gap-1.5">
-          <button
-            onClick={() => setViewOrder(o)}
-            className="w-8 h-8 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center transition-colors text-sm"
-            title="View"
-          >
-            👁️
-          </button>
-          <button
-            onClick={() => openEdit(o)}
-            className="w-8 h-8 rounded-lg border border-blue-200 text-blue-500 hover:bg-blue-50 flex items-center justify-center transition-colors text-sm"
-            title="Edit"
-          >
-            ✏️
-          </button>
-          <button
-            onClick={() => handleDelete(o.id)}
-            className="w-8 h-8 rounded-lg border border-red-200 text-red-400 hover:bg-red-50 flex items-center justify-center transition-colors text-sm"
-            title="Delete"
-          >
-            🗑️
-          </button>
-        </div>
-      ),
+      render: (o) => {
+        const isCompleted = o.orderStatus?.toLowerCase() === "completed";
+        return (
+          <div className="flex items-center justify-center gap-1.5">
+            <button
+              onClick={() => setViewOrder(o)}
+              className="w-8 h-8 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center transition-colors text-sm"
+              title="View"
+            >
+              👁️
+            </button>
+            {!isCompleted && (
+              <>
+                <Link
+                  href={`/imadmin/orders/${o.id}`}
+                  className="w-8 h-8 rounded-lg border border-blue-200 text-blue-500 hover:bg-blue-50 flex items-center justify-center transition-colors text-sm"
+                  title="Edit"
+                >
+                  ✏️
+                </Link>
+                <button
+                  onClick={() => handleDelete(o.id)}
+                  className="w-8 h-8 rounded-lg border border-red-200 text-red-400 hover:bg-red-50 flex items-center justify-center transition-colors text-sm"
+                  title="Delete"
+                >
+                  🗑️
+                </button>
+              </>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
   return (
     <div className="font-sans">
-      <OrderFormModal
-        open={showModal}
-        editingId={editingId}
-        form={form}
-        setForm={setForm}
-        onSave={handleSave}
-        onClose={handleClose}
-      />
       <ViewPanel order={viewOrder} onClose={() => setViewOrder(null)} />
 
       {/* Header */}

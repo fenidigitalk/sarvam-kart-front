@@ -15,6 +15,7 @@ import Header from "@/components/header";
 import Footer from "@/components/footer";
 import { useDispatch, useSelector } from "react-redux";
 import { requestOtp, verifyOtp, addReseller } from "@/store/slices/authSlice";
+import { addToCartAsync, toggleWishlistAsync, fetchWishlistAsync } from "@/store/slices/cartSlice";
 import { AppDispatch, RootState } from "@/store/store";
 
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ export default function LoginPage() {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +62,7 @@ export default function LoginPage() {
         toast.success("Please complete your profile.");
       } else {
         toast.success("Logged in securely ✓");
-        router.push("/");
+        await handlePendingAction();
       }
     } else {
       toast.error(result.payload as string);
@@ -73,24 +75,60 @@ export default function LoginPage() {
       toast.error("Please enter your full name.");
       return;
     }
+    if (!address.trim()) {
+      toast.error("Please enter your address.");
+      return;
+    }
 
-    const result = await dispatch(addReseller({ name, number: phone }));
+    const result = await dispatch(addReseller({ name, number: phone, address }));
     if (addReseller.fulfilled.match(result)) {
       toast.success("Account created and logged in securely ✓");
-      router.push("/");
+      await handlePendingAction();
     } else {
       toast.error(result.payload as string);
     }
   };
 
+  const handlePendingAction = async () => {
+    const pendingAction = sessionStorage.getItem("pendingAction");
+    if (pendingAction) {
+      try {
+        const { type, payload, returnUrl } = JSON.parse(pendingAction);
+        sessionStorage.removeItem("pendingAction");
+        
+        if (type === "cart") {
+          await dispatch(addToCartAsync(payload));
+          toast.success("Item added to bag");
+        } else if (type === "wishlist") {
+          await dispatch(toggleWishlistAsync(payload));
+          dispatch(fetchWishlistAsync());
+          toast.success("Item added to wishlist");
+        }
+        
+        if (returnUrl) {
+          router.push(returnUrl);
+          return;
+        }
+      } catch (err) {
+        console.error("Error processing pending action", err);
+      }
+    }
+    router.push("/profile");
+  };
+
   // Already logged in state
   useEffect(() => {
-    if (currentUser) {
-      router.push("/profile");
+    if (currentUser && !isNewUser) {
+      const pendingAction = sessionStorage.getItem("pendingAction");
+      if (pendingAction) {
+        handlePendingAction();
+      } else {
+        router.push("/profile");
+      }
     }
-  }, [currentUser, router]);
+  }, [currentUser, isNewUser, router]);
 
-  if (currentUser) {
+  if (currentUser && !isNewUser) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-sm text-slate-500">Redirecting to profile...</p>
@@ -223,10 +261,23 @@ export default function LoginPage() {
                   required
                 />
               </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold font-mono text-slate-400 uppercase">
+                  Address
+                </label>
+                <textarea
+                  placeholder="Enter your complete address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  rows={2}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-800 outline-none focus:bg-white focus:border-slate-800 transition font-medium resize-none"
+                  required
+                />
+              </div>
 
               <button
                 type="submit"
-                disabled={loading || !name.trim()}
+                disabled={loading || !name.trim() || !address.trim()}
                 className="w-full bg-slate-950 hover:bg-[#00A759] hover:text-slate-950 text-white font-bold py-3.5 rounded-xl text-xs transition cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {loading ? "Creating Profile..." : "Create Account"}

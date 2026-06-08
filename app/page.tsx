@@ -11,9 +11,12 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { fetchCategories } from "@/store/slices/categorySlice";
+import { toggleWishlistAsync, fetchWishlistAsync } from "@/store/slices/cartSlice";
+import { toast } from "sonner";
 
 const FEATURED_CATEGORIES = [
   {
@@ -294,9 +297,16 @@ function ProductCard({ product }: { product: any }) {
   const imageUrl = product.images?.[0]?.src || "/images/placeholder.jpg";
   const categoryName = product.categories?.[0]?.title || "Uncategorized";
   
+  const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
+  const { wishlist } = useSelector((state: RootState) => state.cart);
+  const { token } = useSelector((state: RootState) => state.auth);
+
+  const isWishlisted = wishlist.some((w: any) => (w._id || w.id || w.shopifyId) === (product._id || product.id || product.shopifyId));
+
   return (
     <Link href={`/product/${product.shopifyId}`}>
-      <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden cursor-pointer transition hover:-translate-y-1 hover:shadow-xl">
+      <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden cursor-pointer transition hover:-translate-y-1 hover:shadow-xl flex flex-col h-full">
         <div className="relative aspect-square bg-slate-50">
           <Image
             src={imageUrl}
@@ -305,17 +315,28 @@ function ProductCard({ product }: { product: any }) {
             className="object-cover"
           />
 
-          {/* {(product.status === "active") && (
-            <span className="absolute top-2 left-2 text-[10px] px-2 py-1 rounded bg-[#dff3ea] text-[#00A759] font-bold">
-              NEW
-            </span>
-          )} */}
-
           <button
-            onClick={(e) => e.preventDefault()}
-            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center"
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const pId = product._id || product.id || product.shopifyId;
+              if (!token) {
+                sessionStorage.setItem("pendingAction", JSON.stringify({ type: "wishlist", payload: pId, returnUrl: window.location.pathname }));
+                router.push("/signin");
+                return;
+              }
+              const isAdded = !isWishlisted;
+              await dispatch(toggleWishlistAsync(pId));
+              if (isAdded) {
+                 toast.success("Added to Wishlist");
+                 dispatch(fetchWishlistAsync());
+              } else {
+                 toast.info("Removed from Wishlist");
+              }
+            }}
+            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:scale-110 transition-transform z-10"
           >
-            <Heart className="w-4 h-4 text-red-500" />
+            <Heart className={`w-4 h-4 ${isWishlisted ? "fill-red-500 text-red-500" : "text-slate-400"}`} />
           </button>
         </div>
 

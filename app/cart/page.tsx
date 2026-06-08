@@ -47,7 +47,7 @@ export default function CartPage() {
     if (checkoutOrderAsync.fulfilled.match(result)) {
       setOrderPlaced(true);
       dispatch(clearCartState());
-      showToast("Order placed successfully!");
+      // showToast("Order placed successfully!");
     } else {
       showToast(result.payload as string || "Failed to place order.");
     }

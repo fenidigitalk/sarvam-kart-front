@@ -9,8 +9,9 @@ import AddToCartButton from "@/components/AddToCartButton";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { fetchCategories } from "@/store/slices/categorySlice";
-import { toggleWishlist } from "@/store/slices/cartSlice";
+import { toggleWishlistAsync, fetchWishlistAsync } from "@/store/slices/cartSlice";
 import { api } from "@/lib/axios";
+import { toast } from "sonner";
 import {
   Heart,
   ShoppingCart,
@@ -37,18 +38,20 @@ function CategoryContent() {
   const router = useRouter();
   const initialCategory =
     searchParams.get("category") || searchParams.get("cat") || "All";
+  const initialSearch = searchParams.get("search") || "";
 
   const dispatch = useDispatch<AppDispatch>();
   const { categories, loading: categoriesLoading } = useSelector(
     (state: RootState) => state.category,
   );
   const { wishlist } = useSelector((state: RootState) => state.cart);
+  const { token } = useSelector((state: RootState) => state.auth);
 
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [priceMin, setPriceMin] = useState(0);
   const [priceMax, setPriceMax] = useState(1000);
   const [sortOrder, setSortOrder] = useState("default");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filtersOpen, setFiltersOpen] = useState(true);
 
@@ -58,10 +61,11 @@ function CategoryContent() {
   const [loading, setLoading] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
 
-  // Sync initialCategory from URL
+  // Sync initialCategory and initialSearch from URL
   useEffect(() => {
     setSelectedCategory(initialCategory);
-  }, [initialCategory]);
+    setSearchQuery(initialSearch);
+  }, [initialCategory, initialSearch]);
 
   // Fetch categories if not fetched
   useEffect(() => {
@@ -470,7 +474,24 @@ function CategoryContent() {
                       {/* Wishlist btn */}
                       <div className="relative">
                         <button
-                          onClick={() => dispatch(toggleWishlist(product))}
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!token) {
+                              sessionStorage.setItem("pendingAction", JSON.stringify({ type: "wishlist", payload: product._id || product.id || product.shopifyId, returnUrl: window.location.pathname + window.location.search }));
+                              router.push("/signin");
+                              return;
+                            }
+                            const pId = product._id || product.id || product.shopifyId;
+                            const isAdded = !wishlist.some((w: any) => (w._id || w.id || w.shopifyId) === pId);
+                            await dispatch(toggleWishlistAsync(pId));
+                            if (isAdded) {
+                               toast.success("Added to Wishlist");
+                               dispatch(fetchWishlistAsync());
+                            } else {
+                               toast.info("Removed from Wishlist");
+                            }
+                          }}
                           className="absolute -top-12 right-2.5 w-8 h-8 bg-white/95 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform cursor-pointer border border-slate-100"
                         >
                           <Heart
@@ -580,7 +601,24 @@ function CategoryContent() {
                         </div>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => dispatch(toggleWishlist(product))}
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (!token) {
+                                sessionStorage.setItem("pendingAction", JSON.stringify({ type: "wishlist", payload: product._id || product.id || product.shopifyId, returnUrl: window.location.pathname + window.location.search }));
+                                router.push("/signin");
+                                return;
+                              }
+                              const pId = product._id || product.id || product.shopifyId;
+                              const isAdded = !wishlist.some((w: any) => (w._id || w.id || w.shopifyId) === pId);
+                              await dispatch(toggleWishlistAsync(pId));
+                              if (isAdded) {
+                                 toast.success("Added to Wishlist");
+                                 dispatch(fetchWishlistAsync());
+                              } else {
+                                 toast.info("Removed from Wishlist");
+                              }
+                            }}
                             className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${
                               wishlist.some(
                                 (w: any) =>

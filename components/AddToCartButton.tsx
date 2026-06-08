@@ -38,21 +38,24 @@ export default function AddToCartButton({ product, variantId, className = "", is
     e.preventDefault();
     e.stopPropagation();
 
-    if (!token) {
-      alert("Please login to add items to your cart.");
-      router.push("/login");
-      return;
-    }
-
     const payload = {
-      productId: product._id, // Must be mongo ID, backend needs it. 
-      // If we don't have Mongo ID, we might have a problem. Let's assume product._id is available.
+      productId: product._id || product.shopifyId, // Try Mongo ID first
       variantId: variantId || product.variants?.[0]?.shopifyVariantId || product.variants?.[0]?._id,
       quantity: 1
     };
 
     if (!payload.productId) {
-      alert("Error: Product ID is missing.");
+      console.error("Error: Product ID is missing.");
+      return;
+    }
+
+    if (!token) {
+      sessionStorage.setItem("pendingAction", JSON.stringify({ 
+        type: "cart", 
+        payload, 
+        returnUrl: window.location.pathname 
+      }));
+      router.push("/signin");
       return;
     }
 

@@ -9,7 +9,8 @@ import {
   LogOut,
   Menu,
   X,
-  UserPlus
+  UserPlus,
+  CreditCard
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -99,17 +100,6 @@ export default function AdminLayout({
             <span className="font-medium text-sm">Orders</span>
           </Link>
 
-          <Link
-            href="/imadmin/pending-payments"
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
-              pathname.includes("/imadmin/pending-payments")
-                ? "bg-[#00A759] text-white"
-                : "text-slate-400 hover:bg-slate-900 hover:text-white"
-            }`}
-          >
-            <Package className="w-5 h-5" />
-            <span className="font-medium text-sm">Pending Payments</span>
-          </Link>
 
           <Link
             href="/imadmin/staff"
@@ -121,6 +111,30 @@ export default function AdminLayout({
           >
             <UserPlus className="w-5 h-5" />
             <span className="font-medium text-sm">Add Staff</span>
+          </Link>
+
+          <Link
+            href="/imadmin/resellers"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
+              pathname.includes("/imadmin/resellers")
+                ? "bg-[#00A759] text-white"
+                : "text-slate-400 hover:bg-slate-900 hover:text-white"
+            }`}
+          >
+            <UserPlus className="w-5 h-5" />
+            <span className="font-medium text-sm">Resellers</span>
+          </Link>
+
+          <Link
+            href="/imadmin/payment-in"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
+              pathname.includes("/imadmin/payment-in")
+                ? "bg-[#00A759] text-white"
+                : "text-slate-400 hover:bg-slate-900 hover:text-white"
+            }`}
+          >
+            <CreditCard className="w-5 h-5" />
+            <span className="font-medium text-sm">Payment In</span>
           </Link>
         </nav>
 

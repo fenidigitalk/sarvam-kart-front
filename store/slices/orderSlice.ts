@@ -16,8 +16,6 @@ interface OrderStats {
 interface OrderState {
   myOrders: any[];
   allOrders: any[];
-  pendingPayments: any[];
-  pendingPagination: PaginationState;
   myStats: { pendingAmount: number };
   stats: OrderStats;
   pagination: PaginationState;
@@ -28,8 +26,6 @@ interface OrderState {
 const initialState: OrderState = {
   myOrders: [],
   allOrders: [],
-  pendingPayments: [],
-  pendingPagination: { totalRecords: 0, currentPage: 1, limit: 10 },
   myStats: { pendingAmount: 0 },
   stats: { totalOrders: 0, pendingAmount: 0, completedAmount: 0 },
   pagination: { totalRecords: 0, currentPage: 1, limit: 10 },
@@ -117,19 +113,6 @@ export const fetchOrderStatsAsync = createAsyncThunk(
   },
 );
 
-export const fetchPendingPaymentsAsync = createAsyncThunk(
-  "order/fetchPendingPayments",
-  async ({ page = 1, limit = 10, search = "" }: any, { rejectWithValue }) => {
-    try {
-      const response = await api.get(`/order/pending-payments?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
-      return response.data; // Now returns { data, pagination }
-    } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch pending payments",
-      );
-    }
-  },
-);
 
 export const updateAdminOrderAsync = createAsyncThunk(
   "order/updateAdminOrder",
@@ -202,22 +185,7 @@ const orderSlice = createSlice({
       .addCase(fetchOrderStatsAsync.fulfilled, (state, action) => {
         state.stats = action.payload;
       })
-      // fetchPendingPayments
-      .addCase(fetchPendingPaymentsAsync.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchPendingPaymentsAsync.fulfilled, (state, action) => {
-        state.loading = false;
-        state.pendingPayments = action.payload.data;
-        if (action.payload.pagination) {
-          state.pendingPagination = action.payload.pagination;
-        }
-      })
-      .addCase(fetchPendingPaymentsAsync.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
+
       // updateAdminOrder
       .addCase(updateAdminOrderAsync.fulfilled, (state, action) => {
         const index = state.allOrders.findIndex(o => o._id === action.payload._id);

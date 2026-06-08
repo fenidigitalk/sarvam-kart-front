@@ -2,17 +2,17 @@
 
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ShoppingBag, X, Heart } from "lucide-react";
+import { ShoppingBag, X, Heart, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/store/store";
 import {
   addToCartAsync,
-  toggleWishlist,
+  toggleWishlistAsync,
 } from "@/store/slices/cartSlice";
+import { toast } from "sonner";
 
 export default function WishlistPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -33,7 +33,28 @@ export default function WishlistPage() {
         </div>
 
         <AnimatePresence mode="wait">
-          {wishlist.length === 0 ? (
+          {!token ? (
+            <motion.div
+              key="login"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="bg-white p-12 text-center rounded-2xl border border-slate-100 space-y-4"
+            >
+              <User className="w-12 h-12 text-slate-200 mx-auto" />
+              <h4 className="text-sm font-bold text-slate-800">
+                Please login to view your Wishlist
+              </h4>
+              <p className="text-xs text-slate-500">
+                You must be logged in to save and view your desires.
+              </p>
+              <Link href="/signin">
+                <button className="mt-2 px-5 py-2.5 bg-slate-950 text-white rounded-xl text-xs font-semibold cursor-pointer hover:bg-[#00A759] hover:text-slate-950 transition">
+                  Login Now
+                </button>
+              </Link>
+            </motion.div>
+          ) : wishlist.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0, y: 10 }}
@@ -114,7 +135,8 @@ export default function WishlistPage() {
                                 "default",
                               quantity: 1,
                             }));
-                            dispatch(toggleWishlist(product));
+                            dispatch(toggleWishlistAsync(product._id || product.id || product.shopifyId));
+                            toast.success("Moved to Bag");
                           }}
                           className="flex-1 px-3 py-2 bg-slate-900 hover:bg-[#00A759] hover:text-slate-950 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
                         >
@@ -122,7 +144,10 @@ export default function WishlistPage() {
                           <span>Move to Bag</span>
                         </button>
                         <button
-                          onClick={() => dispatch(toggleWishlist(product))}
+                          onClick={() => {
+                            dispatch(toggleWishlistAsync(product._id || product.id || product.shopifyId));
+                            toast.info("Removed from Wishlist");
+                          }}
                           className="p-2 border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition"
                         >
                           <X className="w-4 h-4" />
