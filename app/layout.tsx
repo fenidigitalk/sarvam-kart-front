@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   title: "Sarvam Cart | Premium Curated E-commerce",
   description:
     "Sarvam Cart is a premium curated e-commerce experience showcasing beautiful lifestyle, home decor, and fashion drops with seamless state tracking.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
