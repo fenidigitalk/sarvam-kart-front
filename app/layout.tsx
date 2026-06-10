@@ -13,9 +13,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Sarvam Kart | Premium Curated E-commerce",
+  title: "Sarvam Cart | Premium Curated E-commerce",
   description:
-    "Sarvam Kart is a premium curated e-commerce experience showcasing beautiful lifestyle, home decor, and fashion drops with seamless state tracking.",
+    "Sarvam Cart is a premium curated e-commerce experience showcasing beautiful lifestyle, home decor, and fashion drops with seamless state tracking.",
 };
 
 export default function RootLayout({

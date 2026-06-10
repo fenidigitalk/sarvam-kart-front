@@ -1,6 +1,6 @@
 {
-  "name": "Sarvam Kart",
-  "description": "Sarvam Kart is a premium curated e-commerce experience showcasing beautiful lifestyle, home decor, and fashion drops with seamless state tracking.",
+  "name": "Sarvam Cart",
+  "description": "Sarvam Cart is a premium curated e-commerce experience showcasing beautiful lifestyle, home decor, and fashion drops with seamless state tracking.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
