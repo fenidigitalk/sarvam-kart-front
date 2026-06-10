@@ -70,7 +70,7 @@ export default function AdminLayout({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="h-screen bg-slate-50 flex overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {!isSidebarOpen && (
         <button
@@ -97,7 +97,7 @@ export default function AdminLayout({
           </button>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 mt-4">
+        <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
 
           <Link
             href="/imadmin/orders"

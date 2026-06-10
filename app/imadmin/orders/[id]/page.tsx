@@ -174,7 +174,7 @@ export default function OrderDetailsPage() {
         amount: Number(paymentAmount),
         allocations: [{ orderId: order._id, allocatedAmount: Number(paymentAmount) }],
         paymentMode: "cash", // Assuming cash for simple inline form
-        notes: paymentNotes || `Payment for Order #${order.orderNumber}`
+        notes: paymentNotes
       });
       const data = res.data;
       if (data.status === "Success") {
