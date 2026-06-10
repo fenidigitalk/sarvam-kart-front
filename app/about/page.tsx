@@ -4,75 +4,57 @@ import React from "react";
 import Image from "next/image";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
+import { ShieldCheck, TruckIcon, Tag, Headphones, Sparkles } from "lucide-react";
 
 export default function AboutPage() {
   return (
     <div className="bg-white min-h-screen">
       <Header />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* ── Banner Image ── */}
-        <div className="w-full rounded-2xl overflow-hidden mb-12">
-          <Image
-            src="/images/about.jpeg"
-            alt="About Sarvam Kart"
-            width={1200}
-            height={400}
-            className="w-full h-auto object-cover"
-            priority
+
+        {/* Banner */}
+        <div className="w-full rounded-2xl overflow-hidden mb-10">
+          <img
+            src="/images/hero_sec2.jpeg"
+            alt="About Sarvam Cart"           
+            className="w-full h-[550px] object-cover"
           />
         </div>
 
-        {/* ── Why Choose Us ── */}
-        <section className="mb-10">
-          <h2 className="text-xl font-bold text-slate-900 mb-3">
-            Why Choose Us
-          </h2>
-          <p className="text-sm text-slate-600 leading-relaxed">
-            Lorem ipsum dolor sit amet conse ctetur adipisicing elit, sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
-            ad minim veniam. Lorem ipsum dolor sit amet conse ctetur adipisicing
-            elit.It has survived not only five centuries, but also the leap into
-            electronic typesetting, remaining essentially unchanged. It was
-            popularised in the 1960s with the release of Letraset sheets
-            containing Lorem Ipsum passages, and more recently with desktop
-            publishing software like Aldus PageMaker including versions of Lorem
-            Ipsum.
-          </p>
-        </section>
+        {/* Welcome Section */}
+        <div className="flex items-start gap-5 bg-white border border-slate-100 rounded-2xl p-6 mb-8 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center shrink-0 mt-1">
+            <Sparkles className="w-6 h-6 text-[#00A759]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 mb-2">
+              Welcome to SARVAM CART – Smart Shopping, Better Living!
+            </h1>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              SARVAM CART is your trusted online shopping destination, bringing quality products,
+              great prices, and fast service together in one place. From daily essentials to trending
+              products, we make shopping simple, secure, and convenient for everyone.
+              Your satisfaction is our priority.
+            </p>
+          </div>
+        </div>
 
-        {/* ── Our Team ── */}
-        <section className="mb-10">
-          <h2 className="text-xl font-bold text-slate-900 mb-3">Our Team</h2>
-          <p className="text-sm text-slate-600 leading-relaxed">
-            Lorem ipsum dolor sit amet conse ctetur adipisicing elit, sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
-            ad minim veniam. Lorem ipsum dolor sit amet conse ctetur adipisicing
-            elit.It has survived not only five centuries, but also the leap into
-            electronic typesetting, remaining essentially unchanged. It was
-            popularised in the 1960s with the release of Letraset sheets
-            containing Lorem Ipsum passages, and more recently with desktop
-            publishing software like Aldus PageMaker including versions of Lorem
-            Ipsum.
-          </p>
-        </section>
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+          {[
+            { num: "10K+", label: "Happy Customers" },
+            { num: "500+", label: "Products" },
+            { num: "Fast", label: "Delivery" },
+            { num: "24/7", label: "Support" },
+          ].map(({ num, label }) => (
+            <div key={label} className="bg-slate-50 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-[#00A759]">{num}</p>
+              <p className="text-xs text-slate-500 mt-1">{label}</p>
+            </div>
+          ))}
+        </div>
 
-        {/* ── Testimonials ── */}
-        <section className="mb-10">
-          <h2 className="text-xl font-bold text-slate-900 mb-3">
-            Testimonials
-          </h2>
-          <p className="text-sm text-slate-600 leading-relaxed">
-            Lorem ipsum dolor sit amet conse ctetur adipisicing elit, sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
-            ad minim veniam. Lorem ipsum dolor sit amet conse ctetur adipisicing
-            elit.It has survived not only five centuries, but also the leap into
-            electronic typesetting, remaining essentially unchanged. It was
-            popularised in the 1960s with the release of Letraset sheets
-            containing Lorem Ipsum passages, and more recently with desktop
-            publishing software like Aldus PageMaker including versions of Lorem
-            Ipsum.
-          </p>
-        </section>
+        
       </div>
       <Footer />
     </div>

@@ -89,15 +89,16 @@ export default function Header() {
 
   return (
     <>
+    
       {/* Main Header */}
       <header className="bg-white border-b border-slate-100 sticky top-0 z-[100] shadow-sm">
-        <div className="max-w-[1280px] mx-auto px-5 py-3 flex items-center justify-between gap-5">
+        <div className="max-w-[1280px] mx-auto py-3 flex items-center justify-between gap-5">
           {/* Logo */}
           <Link
             href="/"
             className="flex items-center shrink-0 no-underline"
           >
-            <img src="/logo.png" alt="Sarvam Kart" className="h-14 w-auto object-contain drop-shadow-sm" />
+            <img src="/logo.png" alt="Sarvam Cart" className="h-14 w-auto object-contain drop-shadow-sm" />
           </Link>
 
           {/* Search Bar */}
