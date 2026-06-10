@@ -592,7 +592,7 @@ function PaymentBadge({ mode }: { mode: string }) {
   if (!c) return <span className="text-xs text-slate-400">—</span>;
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}
+      className={`inline-flex w-fit items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}
     >
       {c.label}
     </span>
@@ -604,7 +604,7 @@ function DeliveryBadge({ status }: { status: string }) {
   if (!c) return <span className="text-xs text-slate-400">—</span>;
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}
+      className={`inline-flex w-fit items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}
     >
       {c.label}
     </span>
@@ -655,47 +655,8 @@ function QRModal({ order, onClose }: { order: any; onClose: () => void }) {
 // ─── Expanded Row ─────────────────────────────────────────────────────────────
 
 function ExpandedRow({ order }: { order: any }) {
-  const config =
-    STATUS_CONFIG[(order.orderStatus as OrderStatus) || "processing"];
-
   return (
     <div className="px-6 py-5 bg-slate-50/60 border-t border-slate-100 space-y-5">
-      {/* Shipment Track */}
-      {order.orderStatus !== "cancelled" && (
-        <div className="space-y-3">
-          <p className="text-[10px] font-bold font-mono tracking-widest text-[#00A759] uppercase">
-            Shipment Track
-          </p>
-          <div className="flex items-center">
-            {config.steps.map((step, i) => (
-              <React.Fragment key={step}>
-                <div className="flex flex-col items-center gap-1.5 shrink-0">
-                  <div
-                    className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-colors ${
-                      i <= config.currentStep
-                        ? "bg-slate-950 border-slate-950 text-white"
-                        : "bg-white border-slate-200 text-slate-400"
-                    }`}
-                  >
-                    {i <= config.currentStep ? "✓" : i + 1}
-                  </div>
-                  <span
-                    className={`text-[9px] font-medium text-center w-14 leading-tight ${i <= config.currentStep ? "text-slate-700" : "text-slate-400"}`}
-                  >
-                    {step}
-                  </span>
-                </div>
-                {i < config.steps.length - 1 && (
-                  <div
-                    className={`flex-1 h-0.5 mb-5 ${i < config.currentStep ? "bg-slate-950" : "bg-slate-200"}`}
-                  />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Items — using item.image and item.title from API */}
       <div className="space-y-2">
         <p className="text-[10px] font-bold font-mono tracking-widest text-slate-400 uppercase">
