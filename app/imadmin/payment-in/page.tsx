@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/axios";
-import { CreditCard, CheckCircle, Clock, User, Search, ChevronDown, Check, AlertCircle, Plus, ArrowLeft } from "lucide-react";
+import { CreditCard, CheckCircle, Clock, User, Search, ChevronDown, Check, AlertCircle, Plus, ArrowLeft, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export default function PaymentInPage() {
@@ -15,6 +15,7 @@ export default function PaymentInPage() {
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
   const [totalPages, setTotalPages] = useState(1);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const fetchPayments = async () => {
     setPaymentsLoading(true);
@@ -45,6 +46,50 @@ export default function PaymentInPage() {
     setPage(1);
   }, [search]);
 
+  // --- Download Receipt PDF ---
+  const handleDownloadReceipt = async (paymentId: string, paymentNumber: string) => {
+  setDownloadingId(paymentId);
+  try {
+    const res = await api.get(`/payment/${paymentId}/receipt-pdf`, {
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(
+      new Blob([res.data], { type: "application/pdf" })
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `receipt-${paymentNumber}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    toast.success("Receipt downloaded!");
+  } catch (error: any) {
+    let errorMessage = "Failed to download receipt";
+
+    // If the error response is a Blob (because responseType: "blob"),
+    // try to parse it as JSON to get the actual backend message
+    if (error?.response?.data instanceof Blob) {
+      try {
+        const text = await error.response.data.text();
+        const parsed = JSON.parse(text);
+        errorMessage = parsed.message || errorMessage;
+      } catch {
+        // ignore parse errors, fallback to default message
+      }
+    } else if (error?.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    }
+
+    console.error(error);
+    toast.error(errorMessage);
+  } finally {
+    setDownloadingId(null);
+  }
+};
+
   // --- Form View States ---
   const [resellers, setResellers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -65,7 +110,6 @@ export default function PaymentInPage() {
   
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -76,7 +120,6 @@ export default function PaymentInPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch resellers based on search
   useEffect(() => {
     if (view !== "form") return;
     const fetchResellers = async () => {
@@ -89,15 +132,12 @@ export default function PaymentInPage() {
         console.error("Error fetching resellers", error);
       }
     };
-    
     const timeoutId = setTimeout(() => {
       fetchResellers();
     }, 300);
-    
     return () => clearTimeout(timeoutId);
   }, [searchQuery, view]);
 
-  // Fetch pending invoices when a reseller is selected
   const fetchPendingInvoices = async (resellerId: string) => {
     if (!resellerId) {
       setPendingInvoices([]);
@@ -136,16 +176,13 @@ export default function PaymentInPage() {
     let remainingAmount = amount;
     const allocations = [];
     
-    // Allocate based on the exact order the user selected the checkboxes
     const checkedInvoices = selectedOrderIds
       .map(id => pendingInvoices.find(o => o._id === id))
       .filter(Boolean);
 
     for (const order of checkedInvoices) {
       if (remainingAmount <= 0) break;
-      
       const orderPending = order.pendingAmount !== undefined ? order.pendingAmount : order.totalAmount; 
-      
       if (remainingAmount >= orderPending) {
         allocations.push({ 
           orderId: order._id, 
@@ -182,7 +219,6 @@ export default function PaymentInPage() {
       toast.error("Please enter a valid amount");
       return;
     }
-    
     if (calculatedAllocations.length === 0) {
       toast.error("Amount is zero or no selected invoices to allocate");
       return;
@@ -205,7 +241,7 @@ export default function PaymentInPage() {
         setSelectedResellerId("");
         setSelectedResellerName("");
         setPendingInvoices([]);
-        setView("list"); // Switch back to list after success
+        setView("list");
       } else {
         toast.error(data.message || "Failed to record payment");
       }
@@ -221,6 +257,7 @@ export default function PaymentInPage() {
     return sum + (order.pendingAmount !== undefined ? order.pendingAmount : order.totalAmount);
   }, 0);
 
+  // ── LIST VIEW ─────────────────────────────────────────────
   if (view === "list") {
     return (
       <div className="space-y-6 max-w-7xl mx-auto pb-12 animation-fade-in">
@@ -261,18 +298,19 @@ export default function PaymentInPage() {
                   <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Reseller</th>
                   <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Mode</th>
                   <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Download</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {paymentsLoading ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center">
+                    <td colSpan={5} className="px-6 py-12 text-center">
                       <div className="w-6 h-6 border-2 border-[#00A759]/30 border-t-[#00A759] rounded-full animate-spin mx-auto"></div>
                     </td>
                   </tr>
                 ) : payments.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-slate-500 bg-slate-50/50">
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500 bg-slate-50/50">
                       <p className="font-medium text-slate-700">No payments found</p>
                     </td>
                   </tr>
@@ -303,6 +341,22 @@ export default function PaymentInPage() {
                         {payment.allocations && payment.allocations.length > 0 && (
                           <div className="text-xs text-slate-500 mt-0.5">{payment.allocations.length} order(s)</div>
                         )}
+                      </td>
+
+                      {/* ── DOWNLOAD BUTTON ── */}
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => handleDownloadReceipt(payment._id, payment.paymentNumber)}
+                          disabled={downloadingId === payment._id}
+                          title="Download Receipt PDF"
+                          className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-[#00A759]/10 hover:bg-[#00A759]/20 text-[#00A759] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {downloadingId === payment._id ? (
+                            <div className="w-4 h-4 border-2 border-[#00A759]/30 border-t-[#00A759] rounded-full animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4" />
+                          )}
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -365,7 +419,7 @@ export default function PaymentInPage() {
     );
   }
 
-  // --- FORM VIEW ---
+  // ── FORM VIEW ─────────────────────────────────────────────
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animation-fade-in">
       <div className="flex items-center gap-4 mb-2">
@@ -385,7 +439,6 @@ export default function PaymentInPage() {
           </h1>
         </div>
         
-        {/* Searchable Custom Dropdown */}
         <div className="w-full md:w-80 relative" ref={dropdownRef}>
           <div 
             className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors flex items-center justify-between"
@@ -448,7 +501,6 @@ export default function PaymentInPage() {
 
       {selectedResellerId ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Pending Invoices Table */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -474,8 +526,6 @@ export default function PaymentInPage() {
                           checked={selectedOrderIds.length === pendingInvoices.length && pendingInvoices.length > 0}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              // If checked all, maybe only select what fits? But user might not want to check all if it's limited.
-                              // Let's just allow check all, but the actual allocation will stop at the payment limit.
                               setSelectedOrderIds(pendingInvoices.map(o => o._id));
                             } else {
                               setSelectedOrderIds([]);
@@ -511,7 +561,6 @@ export default function PaymentInPage() {
                         const isChecked = selectedOrderIds.includes(order._id);
                         const allocation = calculatedAllocations.find(a => a.orderId === order._id);
                         const orderPendingAmount = order.pendingAmount !== undefined ? order.pendingAmount : order.totalAmount;
-                        
                         const amountEntered = Number(paymentAmount) || 0;
                         const isDisabled = amountEntered <= 0 || (!isChecked && unallocatedAmount <= 0);
                         
@@ -578,7 +627,6 @@ export default function PaymentInPage() {
             </div>
           </div>
 
-          {/* Payment Panel */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sticky top-6">
               <h3 className="font-bold text-slate-900 text-lg mb-6 flex items-center gap-2">
