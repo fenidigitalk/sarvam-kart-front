@@ -41,8 +41,8 @@ export default function Footer() {
                   { icon: <FaInstagram size={18} />, href: "https://www.instagram.com/sarvamcart?igsh=b3FmMno1Nzg1NjZh" },
                   { icon: <FaYoutube size={18} />, href: "https://youtube.com/@sarvamcart?si=TElvrr72dzuDjuJr" },
                   { icon: <FaFacebook size={18} />, href: "https://www.facebook.com/profile.php?id=100063820943432&mibextid=ZbWKwL" },
-                  { icon: <FaWhatsapp size={18} />, href: "https://t.me/sarvamcart" },
-                  { icon: <FaTelegram size={18} />, href: "https://whatsapp.com/channel/0029VaAuaPSK0IBmr2iZRP1d" },
+                  { icon: <FaTelegram size={18} />, href: "https://t.me/sarvamcart" },
+                  { icon: <FaWhatsapp size={18} />, href: "https://whatsapp.com/channel/0029VaAuaPSK0IBmr2iZRP1d" },
                 ].map(({ icon, href }) => (
                   <Link
                     key={icon}
