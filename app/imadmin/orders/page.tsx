@@ -5,7 +5,13 @@ import Link from "next/link";
 import CommonTable from "@/components/commonTable";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
-import { fetchAllOrdersAsync, fetchOrderStatsAsync, updateAdminOrderAsync, deleteOrderAsync } from "@/store/slices/orderSlice";
+import {
+  fetchAllOrdersAsync,
+  fetchOrderStatsAsync,
+  updateAdminOrderAsync,
+  deleteOrderAsync,
+} from "@/store/slices/orderSlice";
+import { api } from "@/lib/axios";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 const PRODUCTS_CATALOG = [
@@ -75,7 +81,7 @@ const VENDORS = ["Sarvam Signature", "Minimalist Co.", "Urban Loft"];
 const PAYMENT_OPTIONS = ["Cash", "Online", "Pending"]; // This is payment mode
 const PAYMENT_STATUS_OPTIONS = ["Pending", "Partial", "Paid"];
 const DELIVERY_OPTIONS = ["Courier", "By Hand"];
-const ORDER_STATUS_OPTIONS = ["Pending","Completed"];
+const ORDER_STATUS_OPTIONS = ["Pending", "Completed"];
 const ITEMS_PER_PAGE = 8;
 
 const generateOrderId = () =>
@@ -683,7 +689,9 @@ function OrderFormModal({
             <input
               type="text"
               value={form.vendor}
-              onChange={(e) => setForm((f) => ({ ...f, vendor: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, vendor: e.target.value }))
+              }
               readOnly={!!editingId}
               className={`w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none ${editingId ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "bg-gray-50"}`}
               placeholder="Enter name"
@@ -806,9 +814,14 @@ function OrderFormModal({
                 Payment Status
               </label>
               <div className="text-sm font-semibold text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg inline-block">
-                {form.paymentStatus ? form.paymentStatus.charAt(0).toUpperCase() + form.paymentStatus.slice(1) : "Pending"}
+                {form.paymentStatus
+                  ? form.paymentStatus.charAt(0).toUpperCase() +
+                    form.paymentStatus.slice(1)
+                  : "Pending"}
               </div>
-              <p className="text-xs text-gray-400 mt-1">Status updates automatically via the Order Details page.</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Status updates automatically via the Order Details page.
+              </p>
             </div>
             {/* <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -892,7 +905,11 @@ function OrderFormModal({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminOrderPage() {
   const dispatch = useDispatch<AppDispatch>();
-  const { allOrders, pagination, stats, loading } = useSelector((state: RootState) => state.order);
+  const { allOrders, pagination, stats, loading } = useSelector(
+    (state: RootState) => state.order,
+  );
+
+  const { adminToken } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     dispatch(fetchOrderStatsAsync());
@@ -913,7 +930,13 @@ export default function AdminOrderPage() {
   }, [searchQuery]);
 
   useEffect(() => {
-    dispatch(fetchAllOrdersAsync({ page: currentPage, limit: ITEMS_PER_PAGE, search: debouncedSearch }));
+    dispatch(
+      fetchAllOrdersAsync({
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+        search: debouncedSearch,
+      }),
+    );
   }, [dispatch, currentPage, debouncedSearch]);
 
   const orders = useMemo<Order[]>(() => {
@@ -927,21 +950,30 @@ export default function AdminOrderPage() {
           name: i.title,
           price: i.price,
           currency: "INR",
-          image: i.image || (i.productId?.images?.[0]?.src) || "",
+          image: i.image || i.productId?.images?.[0]?.src || "",
           brand: "",
           category: "",
           variantId: i.variantId,
         },
         qty: i.quantity,
       })),
-      paymentMethod: o.paymentMode ? o.paymentMode.charAt(0).toUpperCase() + o.paymentMode.slice(1) : "",
-      paymentStatus: o.paymentStatus ? o.paymentStatus.charAt(0).toUpperCase() + o.paymentStatus.slice(1) : "Pending",
-      deliveryMethod: o.deliveryStatus === "pickup_by_customer" ? "By Hand" : (o.deliveryStatus === "courier" ? "Courier" : ""),
-      orderStatus: o.orderStatus ? o.orderStatus.charAt(0).toUpperCase() + o.orderStatus.slice(1) : "Pending",
+      paymentMethod: o.paymentMode
+        ? o.paymentMode.charAt(0).toUpperCase() + o.paymentMode.slice(1)
+        : "",
+      paymentStatus: o.paymentStatus
+        ? o.paymentStatus.charAt(0).toUpperCase() + o.paymentStatus.slice(1)
+        : "Pending",
+      deliveryMethod:
+        o.deliveryStatus === "pickup_by_customer"
+          ? "By Hand"
+          : o.deliveryStatus === "courier"
+            ? "Courier"
+            : "",
+      orderStatus: o.orderStatus
+        ? o.orderStatus.charAt(0).toUpperCase() + o.orderStatus.slice(1)
+        : "Pending",
     }));
   }, [allOrders]);
-
-
 
   const emptyForm: FormState = {
     vendor: "",
@@ -959,17 +991,28 @@ export default function AdminOrderPage() {
     value: string,
   ) => {
     const data: any = {};
-    if (field === "paymentMethod") data.paymentMode = value ? value.toLowerCase() : "";
-    if (field === "paymentStatus") data.paymentStatus = value ? value.toLowerCase() : "";
+    if (field === "paymentMethod")
+      data.paymentMode = value ? value.toLowerCase() : "";
+    if (field === "paymentStatus")
+      data.paymentStatus = value ? value.toLowerCase() : "";
     if (field === "deliveryMethod") {
-      data.deliveryStatus = value === "By Hand" ? "pickup_by_customer" : (value === "Courier" ? "courier" : "");
+      data.deliveryStatus =
+        value === "By Hand"
+          ? "pickup_by_customer"
+          : value === "Courier"
+            ? "courier"
+            : "";
     }
-    if (field === "orderStatus") data.orderStatus = value ? value.toLowerCase() : "";
+    if (field === "orderStatus")
+      data.orderStatus = value ? value.toLowerCase() : "";
     await dispatch(updateAdminOrderAsync({ orderId: id, data }));
     dispatch(fetchOrderStatsAsync());
   };
 
-  const totalPages = Math.max(1, Math.ceil((pagination?.totalRecords || 0) / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil((pagination?.totalRecords || 0) / ITEMS_PER_PAGE),
+  );
   const paginated = orders; // Backend already paginated this
 
   const openAdd = () => {
@@ -1000,22 +1043,31 @@ export default function AdminOrderPage() {
       alert("Vendor and at least one product are required!");
       return;
     }
-    
+
     // Convert Form back to backend structure
     const data: any = {
-      items: form.items.map(i => ({
+      items: form.items.map((i) => ({
         productId: i.product.id,
         variantId: i.product.variantId || "11111111111111", // Fallback for mock data
         quantity: i.qty,
         price: i.product.price,
-        title: i.product.name
-      }))
+        title: i.product.name,
+      })),
     };
-    
+
     // Always send these fields so we can clear them if needed
-    data.paymentMode = form.paymentMethod ? form.paymentMethod.toLowerCase() : "";
-    data.paymentStatus = form.paymentStatus ? form.paymentStatus.toLowerCase() : "";
-    data.deliveryStatus = form.deliveryMethod === "By Hand" ? "pickup_by_customer" : (form.deliveryMethod === "Courier" ? "courier" : "");
+    data.paymentMode = form.paymentMethod
+      ? form.paymentMethod.toLowerCase()
+      : "";
+    data.paymentStatus = form.paymentStatus
+      ? form.paymentStatus.toLowerCase()
+      : "";
+    data.deliveryStatus =
+      form.deliveryMethod === "By Hand"
+        ? "pickup_by_customer"
+        : form.deliveryMethod === "Courier"
+          ? "courier"
+          : "";
     if (form.orderStatus) data.orderStatus = form.orderStatus.toLowerCase();
 
     if (editingId) {
@@ -1025,7 +1077,7 @@ export default function AdminOrderPage() {
       // If creating new... wait, AdminOrderPage doesn't create orders yet, it only updates.
       // But just in case:
     }
-    
+
     dispatch(fetchOrderStatsAsync());
     handleClose();
   };
@@ -1035,6 +1087,23 @@ export default function AdminOrderPage() {
       await dispatch(deleteOrderAsync(id));
     }
   };
+
+ const handleDownload = async (orderId: string) => {
+  try {
+    const res = await api.get(`/order/${orderId}/pdf`, {
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `order-${orderId}.pdf`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.log("Error:", err);
+    alert("PDF download failed!");
+  }
+};
 
   interface Column<T> {
     header: string;
@@ -1071,14 +1140,12 @@ export default function AdminOrderPage() {
       header: "Qty",
       className: "flex items-center justify-right",
       render: (o) => (
-        
-          <span
-            className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
-            style={{ backgroundColor: "#00A75915", color: "#00A759" }}
-          >
-            {orderTotalQty(o)}
-          </span>
-      
+        <span
+          className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
+          style={{ backgroundColor: "#00A75915", color: "#00A759" }}
+        >
+          {orderTotalQty(o)}
+        </span>
       ),
     },
     {
@@ -1094,7 +1161,9 @@ export default function AdminOrderPage() {
       render: (o) => {
         const isCompleted = o.orderStatus?.toLowerCase() === "completed";
         return isCompleted ? (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">COMPLETED</span>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">
+            COMPLETED
+          </span>
         ) : (
           <InlineSelect
             value={o.orderStatus}
@@ -1120,10 +1189,13 @@ export default function AdminOrderPage() {
       header: "Payment Status",
       render: (o) => {
         const rawStatus = o.paymentStatus || "pending";
-        const capStatus = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
+        const capStatus =
+          rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
         const c = PILL_FULL[capStatus] || PILL_FULL["Pending"];
         return (
-          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${c.activeBg} ${c.activeText} ${c.activeBorder}`}>
+          <span
+            className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${c.activeBg} ${c.activeText} ${c.activeBorder}`}
+          >
             {capStatus}
           </span>
         );
@@ -1133,9 +1205,7 @@ export default function AdminOrderPage() {
       header: "Delivery",
       render: (o) => {
         const isCompleted = o.orderStatus?.toLowerCase() === "completed";
-        return isCompleted ? (
-          <span className="text-sm font-medium text-gray-600">{o.deliveryMethod || "Select"}</span>
-        ) : (
+        return (
           <InlineSelect
             value={o.deliveryMethod}
             options={DELIVERY_OPTIONS}
@@ -1159,6 +1229,17 @@ export default function AdminOrderPage() {
             >
               👁️
             </button>
+            {/* COMPLETED — Download PDF */}
+            {isCompleted && (
+              <button
+                onClick={() => handleDownload(o.id)}
+                className="w-8 h-8 rounded-lg border border-green-200 text-green-600 hover:bg-green-50 flex items-center justify-center transition-colors text-sm"
+                title="Download Invoice PDF"
+              >
+                ⬇️
+              </button>
+            )}
+
             {!isCompleted && (
               <>
                 <Link
@@ -1234,8 +1315,12 @@ export default function AdminOrderPage() {
           {/* Total Orders Card */}
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Total Orders</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalOrders || 0}</p>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                Total Orders
+              </p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">
+                {stats?.totalOrders || 0}
+              </p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center text-xl">
               📦
@@ -1244,8 +1329,12 @@ export default function AdminOrderPage() {
           {/* Completed Payments Card */}
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Completed Payments</p>
-              <p className="text-3xl font-bold text-green-600 mt-2">₹{(stats?.completedAmount || 0).toLocaleString("en-IN")}</p>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                Completed Payments
+              </p>
+              <p className="text-3xl font-bold text-green-600 mt-2">
+                ₹{(stats?.completedAmount || 0).toLocaleString("en-IN")}
+              </p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-green-50 text-green-500 flex items-center justify-center text-xl">
               💸
@@ -1254,8 +1343,12 @@ export default function AdminOrderPage() {
           {/* Pending Payments Card */}
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Pending Payments</p>
-              <p className="text-3xl font-bold text-yellow-600 mt-2">₹{(stats?.pendingAmount || 0).toLocaleString("en-IN")}</p>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                Pending Payments
+              </p>
+              <p className="text-3xl font-bold text-yellow-600 mt-2">
+                ₹{(stats?.pendingAmount || 0).toLocaleString("en-IN")}
+              </p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-yellow-50 text-yellow-500 flex items-center justify-center text-xl">
               ⏳
@@ -1281,7 +1374,6 @@ export default function AdminOrderPage() {
           footerBg="bg-gray-50"
           gridTemplateColumns="1.2fr 1.2fr 0.8fr 0.6fr 1fr 1fr 1fr 1fr 1.2fr"
         />
-
       </div>
     </div>
   );
