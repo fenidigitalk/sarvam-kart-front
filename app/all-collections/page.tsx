@@ -53,7 +53,7 @@ export default function AllCollectionPage() {
   }, []);
 
   const lastElementRef = useCallback(
-    (node: HTMLDivElement) => {
+    (node: HTMLAnchorElement | null) => {
       if (loading) return;
       if (observer.current) observer.current.disconnect();
 
