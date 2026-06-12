@@ -915,6 +915,35 @@ export default function AdminOrderPage() {
     dispatch(fetchOrderStatsAsync());
   }, [dispatch]);
 
+  const [isSyncingCategory, setIsSyncingCategory] = useState(false);
+  const [isSyncingProduct, setIsSyncingProduct] = useState(false);
+
+  const handleSyncCategory = async () => {
+    try {
+      setIsSyncingCategory(true);
+      await api.post("/category/sync");
+      alert("Category synced successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to sync category");
+    } finally {
+      setIsSyncingCategory(false);
+    }
+  };
+
+  const handleSyncProduct = async () => {
+    try {
+      setIsSyncingProduct(true);
+      await api.post("/product/sync");
+      alert("Product synced successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to sync product");
+    } finally {
+      setIsSyncingProduct(false);
+    }
+  };
+
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1298,14 +1327,24 @@ export default function AdminOrderPage() {
             </p>
           </div>
         </div>
-        {/* <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
-          style={{ backgroundColor: "#00A759" }}
-        >
-          <span className="text-base leading-none font-bold">+</span>
-          New Order
-        </button> */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSyncCategory}
+            disabled={isSyncingCategory}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+            style={{ backgroundColor: "#00A759" }}
+          >
+            {isSyncingCategory ? "Syncing..." : "Sync Category"}
+          </button>
+          <button
+            onClick={handleSyncProduct}
+            disabled={isSyncingProduct}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+            style={{ backgroundColor: "#00A759" }}
+          >
+            {isSyncingProduct ? "Syncing..." : "Sync Product"}
+          </button>
+        </div>
       </div>
 
       {/* Content */}

@@ -116,7 +116,7 @@ export default function OrderDetailsPage() {
         })),
         paymentMode,
         paymentStatus,
-        orderStatus,
+        orderStatus: "completed",
         deliveryStatus
       };
 
